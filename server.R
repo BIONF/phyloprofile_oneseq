@@ -779,16 +779,6 @@ shinyServer(function(input, output, session) {
     subsetID <- setID[input$stIndex:nrHit,]
     dataHeat <- merge(data,subsetID,by="geneID")
 
-    # ### check input file
-    # filein <- input$file1
-    # if(is.null(filein)){return()}
-    # #      data <- read.table(file=filein$datapath, sep='\t',header=T)
-    # dataHeat <- dataSupertaxa()
-    #
-    # # get selected supertaxon name
-    # split <- strsplit(as.character(input$inSelect),"_")
-    # inSelect <- as.character(split[[1]][1])
-
     ### replace insufficient values according to the thresholds by NA or 0; and replace FAS 0.0 by NA
     dataHeat$presSpec[dataHeat$supertaxon != inSelect & dataHeat$presSpec < percent_cutoff] <- 0
     dataHeat$presSpec[dataHeat$supertaxon != inSelect & dataHeat$fas < fas_cutoff] <- 0
@@ -806,37 +796,31 @@ shinyServer(function(input, output, session) {
 
         ### plot format
         if(input$xAxis == "genes"){
-          p = ggplot(dataHeat, aes(x = geneID, y = supertaxon)) +        ## global aes
-            scale_fill_gradient(low = input$lowColor_trace, high = input$highColor_trace, na.value="gray95") +   ## fill color (traceability)
+          p = ggplot(dataHeat, aes(x = geneID, y = supertaxon))        ## global aes
+        } else {
+          p = ggplot(dataHeat, aes(y = geneID, x = supertaxon))
+        }
+        
+        p = p + scale_fill_gradient(low = input$lowColor_trace, high = input$highColor_trace, na.value="gray95") +   ## fill color (traceability)
             geom_tile(aes(fill = traceability)) +    ## filled rect (traceability score)
             geom_point(aes(colour = fas, size = presSpec))  +    ## geom_point for circle illusion (FAS and presence/absence)
             scale_color_gradient(low = input$lowColor_fas,high = input$highColor_fas)#+       ## color of the corresponding aes (FAS)
           scale_size(range = c(0,3))             ## to tune the size of circles
+        base_size <- 9
+          
+        if(input$xAxis == "genes"){
           p = p + labs(y="Taxon")
-
-          base_size <- 9
           p = p+geom_hline(yintercept=0.5,colour="dodgerblue4")
           p = p+geom_hline(yintercept=1.5,colour="dodgerblue4")
-          p = p+theme(axis.text.x = element_text(angle=60,hjust=1,size=input$xSize),axis.text.y = element_text(size=input$ySize),
-                      axis.title.x = element_text(size=input$xSize), axis.title.y = element_text(size=input$ySize),
-                      legend.title=element_text(size=input$legendSize),legend.text=element_text(size=input$legendSize),legend.position = input$mainLegend)
-        } else {
-          p = ggplot(dataHeat, aes(y = geneID, x = supertaxon)) +        ## global aes
-            scale_fill_gradient(low = input$lowColor_trace, high = input$highColor_trace, na.value="gray95") +   ## fill color (traceability)
-            geom_tile(aes(fill = traceability)) +    ## filled rect (traceability score)
-            geom_point(aes(colour = fas, size = presSpec))  +    ## geom_point for circle illusion (FAS and presence/absence
-            scale_color_gradient(low = input$lowColor_fas,high = input$highColor_fas)#+       ## color of the corresponding aes
-          scale_size(range = c(0,3))             ## to tune the size of circles
+        } else{
           p = p + labs(x="Taxon")
-
-
-          base_size <- 9
           p = p+geom_vline(xintercept=0.5,colour="dodgerblue4")
           p = p+geom_vline(xintercept=1.5,colour="dodgerblue4")
-          p = p+theme(axis.text.x = element_text(angle=60,hjust=1,size=input$xSize),axis.text.y = element_text(size=input$ySize),
-                      axis.title.x = element_text(size=input$xSize), axis.title.y = element_text(size=input$ySize),
-                      legend.title=element_text(size=input$legendSize),legend.text=element_text(size=input$legendSize),legend.position = input$mainLegend)
         }
+        
+        p = p+theme(axis.text.x = element_text(angle=60,hjust=1,size=input$xSize),axis.text.y = element_text(size=input$ySize),
+                    axis.title.x = element_text(size=input$xSize), axis.title.y = element_text(size=input$ySize),
+                    legend.title=element_text(size=input$legendSize),legend.text=element_text(size=input$legendSize),legend.position = input$mainLegend)
 
         ### highlight taxon
         if(input$taxonHighlight != "none"){
@@ -1108,48 +1092,64 @@ shinyServer(function(input, output, session) {
     pos <- info[7]
   })
 
-  #############################################################
-  #### PLOT FAS SCORE & % OF PRESENT SPECIES DISTRIBUTION #####
-  #############################################################
+  ###########################################################################
+  #### PLOT FAS, TRACEABILITY SCORE & % OF PRESENT SPECIES DISTRIBUTION #####
+  ###########################################################################
 
+  ######## list of available variables for distribution plot
+  output$selected.distribution = renderUI({
+    varList <- as.list(c("FAS","Traceability","% present taxa"))
+    selectInput('selected_dist',h5('Choose variable to plot:'),varList,varList[1])
+  })
+  
+  ###### FAS / trace distribution data
+  distDf <- reactive({
+    if (v$doPlot == FALSE) return()
+    
+    # open main input file
+    filein <- input$file1
+    dataOrig <- as.data.frame(read.table(file=filein$datapath, sep='\t',header=T,check.names=FALSE,comment.char=""))
+    
+    # convert into long format and remove line that contain NA (no ortholog)
+    mdData <- melt(dataOrig,id="geneID")
+    
+    # split "orthoID#fas#trace" into 3 columns
+    splitDt <- as.data.frame(str_split_fixed(mdData$value, '#', 3))
+    colnames(splitDt) <- c("orthoID","fas","traceability")
+    splitDt <- splitDt[splitDt$fas != "NA",]
+    
+    # convert factor into numeric for "fas" and "traceability" column
+    splitDt$fas<-as.numeric(as.character(splitDt$fas))
+    splitDt$traceability<-as.numeric(as.character(splitDt$traceability))
+    
+    # filter splitDt based on selected FAS cutoff
+    splitDt <- splitDt[splitDt$fas >= input$fas,]
+    
+    # return dt
+    splitDt$type <- "none"
+    splitDt
+  })
+  
   ###### FAS score distribution plot
   fasDistPlot <- function(){
     if (v$doPlot == FALSE) return()
 
-    # open main input file
-    filein <- input$file1
-    dataOrig <- as.data.frame(read.table(file=filein$datapath, sep='\t',header=T,check.names=FALSE,comment.char=""))
-
-    # convert into long format and remove line that contain NA (no ortholog)
-    mdData <- melt(dataOrig,id="geneID")
-    mdData <- mdData[!is.na(mdData$value),]
-
-    # split "orthoID#fas" into 2 columns
-    splitDt <- as.data.frame(str_split_fixed(mdData$value, '#', 2))
-    colnames(splitDt) <- c("orthoID","fas")
-
-    # convert factor into numeric for "fas" column
-    splitDt$fas<-as.numeric(as.character(splitDt$fas))
-
-    # filter splitDt based on selected FAS cutoff
-    splitDt <- splitDt[splitDt$fas >= input$fas,]
-
+    splitDt <- distDf()
     # calculate mean FAS score
-    splitDt$type <- "none"
     cdat <- ddply(splitDt, "type", summarise, rating.mean=mean(fas))
-
-    # plot FAS score distribution
+    
+    # plot fas score distribution
     p <- ggplot(splitDt, aes(x=fas)) +
       geom_histogram(binwidth=.01, alpha=.5, position="identity") +
       geom_vline(data=cdat, aes(xintercept=rating.mean,  colour=type),
                  linetype="dashed", size=1) +
-      ggtitle(paste("Mean FAS score = ",round(mean(splitDt$fas),3))) +
+      ggtitle(paste("Mean",input$fas,"=",round(mean(splitDt$fas),3))) +
       theme_minimal()
     p <- p + theme(legend.position = "none",
                    plot.title = element_text(hjust = 0.5),
                    axis.title.x = element_text(size=input$xSize),axis.text.x = element_text(size=input$xSize),
                    axis.title.y = element_text(size=input$ySize),axis.text.y = element_text(size=input$ySize)) +
-         labs(x = "FAS score", y = "Frequency")
+      labs(x = "FAS score", y = "Frequency")
     p
   }
 
@@ -1191,6 +1191,68 @@ shinyServer(function(input, output, session) {
       }
     }
   })
+  
+  ###### TRACEABILITY score distribution plot
+  traceDistPlot <- function(){
+    if (v$doPlot == FALSE) return()
+    
+    splitDt <- distDf()
+    # calculate mean FAS score
+    cdat <- ddply(splitDt, "type", summarise, rating.mean=mean(traceability))
+    
+    # plot trace score distribution
+    p <- ggplot(splitDt, aes(x=traceability)) +
+      geom_histogram(binwidth=.01, alpha=.5, position="identity") +
+      geom_vline(data=cdat, aes(xintercept=rating.mean,  colour=type),
+                 linetype="dashed", size=1) +
+      ggtitle(paste("Mean",input$tracebility,"=",round(mean(splitDt$traceability),3))) +
+      theme_minimal()
+    p <- p + theme(legend.position = "none",
+                   plot.title = element_text(hjust = 0.5),
+                   axis.title.x = element_text(size=input$xSize),axis.text.x = element_text(size=input$xSize),
+                   axis.title.y = element_text(size=input$ySize),axis.text.y = element_text(size=input$ySize)) +
+      labs(x = "Traceability score", y = "Frequency")
+    p
+  }
+  
+  output$traceDistPlot <- renderPlot(width = 512, height = 356,{
+    if(input$autoUpdate == FALSE){
+      # Add dependency on the update button (only update when button is clicked)
+      input$updateBtn
+      
+      # Add all the filters to the data based on the user inputs
+      # wrap in an isolate() so that the data won't update every time an input
+      # is changed
+      isolate({
+        traceDistPlot()
+      })
+    } else {
+      traceDistPlot()
+    }
+  })
+  
+  output$traceDist.ui <- renderUI({
+    if(v$doPlot == FALSE){
+      return()
+    } else{
+      ## if autoupdate is NOT selected, use updateBtn to trigger plot changing
+      if(input$autoUpdate == FALSE){
+        # Add dependency on the update button (only update when button is clicked)
+        input$updateBtn
+        
+        # Add all the filters to the data based on the user inputs
+        # wrap in an isolate() so that the data won't update every time an input
+        # is changed
+        isolate({
+          plotOutput("traceDistPlot",width=input$width,height = input$height)
+        })
+      }
+      ## if autoupdate is true
+      else {
+        plotOutput("traceDistPlot",width=input$width,height = input$height)
+      }
+    }
+  })
 
   ####### % present species distribution plot
   
@@ -1203,17 +1265,24 @@ shinyServer(function(input, output, session) {
     # convert into paired columns
     mdData <- melt(data,id="geneID")
     
+    # split value column into orthoID and fas, traceability
+    splitDt <- (str_split_fixed(mdData$value, '#', 3))
+    # then join them back to mdData
+    mdData <- cbind(mdData,splitDt)
     # rename columns
-    colnames(mdData) <- c("geneID","ncbiID","fas")
-
-    # sorted supertaxa list
+    colnames(mdData) <- c("geneID","ncbiID","value","orthoID","fas","traceability")
+    mdData <- mdData[,c("geneID","ncbiID","fas","orthoID","traceability")]
+    
+    ### (3) GET SORTED TAXONOMY LIST (3) ###
     taxaList <- sortedTaxaList()
-     
+    
     # calculate frequency of all supertaxa
     taxaCount <- plyr::count(taxaList,'supertaxon')
-     
-    # merge mdData and taxaList to get taxonomy info
+    
+    # merge mdData, mdDataTrace and taxaList to get taxonomy info
     taxaMdData <- merge(mdData,taxaList,by='ncbiID')
+    taxaMdData$fas <- as.numeric(as.character(taxaMdData$fas))
+    taxaMdData$traceability <- as.numeric(as.character(taxaMdData$traceability))
     
     # calculate % present species
     finalPresSpecDt <- calcPresSpec(taxaMdData, taxaCount)
@@ -1234,11 +1303,11 @@ shinyServer(function(input, output, session) {
       dt <- dt[dt$presSpec > 0,]
     }
     
-    # calculate mean FAS score
+    # calculate mean presSpec score
     dt$type <- "none"
     cdat <- ddply(dt, "type", summarise, rating.mean=mean(presSpec))
     
-    # plot FAS score distribution
+    # plot %presSpec score distribution
     p <- ggplot(dt, aes(x=presSpec)) +
       geom_histogram(binwidth=.01, alpha=.5, position="identity") +
       geom_vline(data=cdat, aes(xintercept=rating.mean,  colour=type),
@@ -1333,37 +1402,32 @@ shinyServer(function(input, output, session) {
 
       ### plotting
       if(input$xAxis_selected == "taxa"){
-        p = ggplot(dataHeat, aes(y = geneID, x = supertaxon)) +        ## global aes
-          scale_fill_gradient(low = input$lowColor_trace, high = input$highColor_trace, na.value="gray95") +   ## fill color (traceability)
+        p = ggplot(dataHeat, aes(y = geneID, x = supertaxon))        ## global aes
+      } else{
+        p = ggplot(dataHeat, aes(x = geneID, y = supertaxon))
+      }
+        
+      p = p + scale_fill_gradient(low = input$lowColor_trace, high = input$highColor_trace, na.value="gray95") +   ## fill color (traceability)
           geom_tile(aes(fill = traceability)) +# + scale_fill_gradient(low="gray95", high="red")) +    ## filled rect (traceability score)
           geom_point(aes(colour = fas, size = presSpec))  +    ## geom_point for circle illusion (FAS and presence/absence)
           scale_color_gradient(low = input$lowColor_fas,high = input$highColor_fas)#+       ## color of the corresponding aes (FAS)
         scale_size(range = c(0,3))             ## to tune the size of circles
+      base_size <- 9
+      
+      if(input$xAxis_selected == "taxa"){
         p = p + labs(x="Taxon")
-
-        base_size <- 9
         p = p+geom_vline(xintercept=0.5,colour="dodgerblue4")
         p = p+geom_vline(xintercept=1.5,colour="dodgerblue4")
-        p = p+theme(axis.text.x = element_text(angle=60,hjust=1,size=input$xSizeSelect),axis.text.y = element_text(size=input$ySizeSelect),
-                    axis.title.x = element_text(size=input$xSizeSelect), axis.title.y = element_text(size=input$ySizeSelect),
-                    legend.title=element_text(size=input$legendSizeSelect),legend.text=element_text(size=input$legendSizeSelect),legend.position=input$selectedLegend)
       } else {
-        p = ggplot(dataHeat, aes(x = geneID, y = supertaxon)) +        ## global aes
-          scale_fill_gradient(low = input$lowColor_trace, high = input$highColor_trace, na.value="gray95") +   ## fill color (traceability)
-          geom_tile(aes(fill = traceability)) +    ## filled rect (traceability score)
-          geom_point(aes(colour = fas, size = presSpec))  +    ## geom_point for circle illusion (FAS and presence/absence)
-          scale_color_gradient(low = input$lowColor_fas,high = input$highColor_fas)#+       ## color of the corresponding aes (FAS)
-        scale_size(range = c(0,3))             ## to tune the size of circles
         p = p + labs(y="Taxon")
-
-        base_size <- 9
-        p = p+geom_vline(xintercept=0.5,colour="dodgerblue4")
-        p = p+geom_vline(xintercept=1.5,colour="dodgerblue4")
-        p = p+theme(axis.text.x = element_text(angle=60,hjust=1,size=input$xSizeSelect),axis.text.y = element_text(size=input$ySizeSelect),
-                    axis.title.x = element_text(size=input$xSizeSelect), axis.title.y = element_text(size=input$ySizeSelect),
-                    legend.title=element_text(size=input$legendSizeSelect),legend.text=element_text(size=input$legendSizeSelect),legend.position=input$selectedLegend)
+        p = p+geom_hline(yintercept=0.5,colour="dodgerblue4")
+        p = p+geom_hline(yintercept=1.5,colour="dodgerblue4")
       }
-
+      
+      p = p+theme(axis.text.x = element_text(angle=60,hjust=1,size=input$xSizeSelect),axis.text.y = element_text(size=input$ySizeSelect),
+                  axis.title.x = element_text(size=input$xSizeSelect), axis.title.y = element_text(size=input$ySizeSelect),
+                  legend.title=element_text(size=input$legendSizeSelect),legend.text=element_text(size=input$legendSizeSelect),legend.position=input$selectedLegend)
+      
       ### do plotting
       if(input$autoUpdateSelected == FALSE){
         # Add dependency on the update button (only update when button is clicked)
@@ -1571,7 +1635,7 @@ shinyServer(function(input, output, session) {
   ##################### DETAILED PLOT #########################
   #############################################################
 
-  ######## data for detailed FAS plot
+  ######## data for detailed plot
   detailPlotDt <- reactive({
     if (v$doPlot == FALSE) return()
 
@@ -1593,18 +1657,30 @@ shinyServer(function(input, output, session) {
     }
   })
 
-  ######## render detailed FAS plot
+  ######## render detailed plot
   output$detailPlot <- renderPlot({
     if (v$doPlot == FALSE) return()
-
+    
     selDf <- detailPlotDt()
     selDf$x_label <- paste(selDf$orthoID,"@",selDf$fullName,sep = "")
-
-    gp = ggplot(selDf, aes(y=fas,x=x_label)) +
-      geom_bar(colour="steelblue", fill="steelblue", stat="identity") +
+    
+    ### create joined DF for plotting var1 next to var2
+    fasDf <- subset(selDf, select = c("x_label","fas"))
+    fasDf$type <- "fas"
+    colnames(fasDf) <- c("id","score","var")
+    traceDf <- subset(selDf, select = c("x_label","traceability"))
+    traceDf$type <- "traceability"
+    colnames(traceDf) <- c("id","score","var")
+    
+    detailedDf <- rbind(fasDf,traceDf)
+    
+    ### create plot
+    gp = ggplot(detailedDf, aes(y=score,x=id,fill=var)) +
+      geom_bar(stat="identity", position=position_dodge()) +
       coord_flip() +
-      labs(x="") #+
-    #geom_text(aes(label=fas), vjust=3)
+      labs(x="") +
+      theme_minimal()
+    #geom_text(aes(label=var1), vjust=3)
     gp = gp+theme(axis.text.x = element_text(angle=90,hjust=1))
     gp
   })
@@ -1838,7 +1914,7 @@ shinyServer(function(input, output, session) {
 
     dataOut <- as.data.frame(dataOut[dataOut$presSpec >= input$percent & dataOut$fas >= input$fas,])
 
-    dataOut <- dataOut[,c("geneID","orthoID","fullName","ncbiID","supertaxon","fas","numberSpec","presSpec","traceability")]
+    dataOut <- dataOut[,c("geneID","orthoID","fullName","ncbiID","supertaxon","fas","traceability","numberSpec","presSpec")]
     dataOut <- dataOut[order(dataOut$geneID,dataOut$supertaxon),]
     dataOut <- dataOut[complete.cases(dataOut),]
 
@@ -1871,12 +1947,12 @@ shinyServer(function(input, output, session) {
     #data <- allTaxaList()
     #data <- sortedTaxaList()
     #data <- preDataFiltered()
-    data <- dataFiltered()
+    #data <- dataFiltered()
     #data <- dataSupertaxa()
     #data <- dataHeat()
     #data <- detailPlotDt()
     #data <- presSpecAllDt()
-    #data <- downloadData()
+    data <- downloadData()
     data
   })
 

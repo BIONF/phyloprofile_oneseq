@@ -263,12 +263,22 @@ shinyUI(fluidPage(
                 )
               ),
               
-              tabPanel("FAS score distribution",
-                uiOutput("fasDist.ui")
-              ),
-              
-              tabPanel("% present taxa distribution",
-                       uiOutput("presSpec.ui")
+              tabPanel("Distribution plot",
+                       uiOutput("selected.distribution"),
+                       conditionalPanel(
+                         condition = "input.selected_dist == 'FAS'",
+                         uiOutput("fasDist.ui")
+                       ),
+                       
+                       conditionalPanel(
+                         condition = "input.selected_dist == 'Traceability'",
+                         uiOutput("traceDist.ui")
+                       ),
+                       
+                       conditionalPanel(
+                         condition = "input.selected_dist == '% present taxa'",
+                         uiOutput("presSpec.ui")
+                       )
               )
             )
           )
