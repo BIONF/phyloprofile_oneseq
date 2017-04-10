@@ -23,7 +23,7 @@ and a gene list for customized profile plot:
 # Usage
 (1) Clone this git repository to your computer using this command:
 
->git clone https://github.com/trvinh/phyloprofile
+>git clone https://github.com/trvinh/phyloprofile_oneseq
 
 OR
 
