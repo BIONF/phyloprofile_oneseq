@@ -149,9 +149,8 @@ shinyUI(fluidPage(
                ),
                
                fileInput("file1",h5("Presence/absence file:")),
-               strong(h4("Additional files (if any):")),
-               fileInput("file3",h5("Feature architectures:")),
-               fileInput("file2",h5("Traceability matrix:")),
+               strong(h4("Additional annotation file:")),
+               fileInput("file3",h5("")),
                
                hr()
                # strong(h4("Choose genes of interest:")),

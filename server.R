@@ -612,34 +612,34 @@ shinyServer(function(input, output, session) {
     mdData <- melt(data,id="geneID")
 
     # split value column into orthoID and fas
-    splitDt <- (str_split_fixed(mdData$value, '#', 2))
+    splitDt <- (str_split_fixed(mdData$value, '#', 3))
     # then join them back to mdData
     mdData <- cbind(mdData,splitDt)
     # rename columns
-    colnames(mdData) <- c("geneID","ncbiID","value","orthoID","fas")
-    mdData <- mdData[,c("geneID","ncbiID","fas","orthoID")]
+    colnames(mdData) <- c("geneID","ncbiID","value","orthoID","fas","traceability")
+    mdData <- mdData[,c("geneID","ncbiID","fas","orthoID","traceability")]
 
-    ### (2) LOADING TRACEABILITY MATRIX and merge with input mdData (2) ###
-    filein2 <- input$file2
-    if(is.null(filein2)){
-      mdDataTrace <- mdData[,c("geneID","ncbiID")]
-      mdDataTrace$traceability <- 0
-    } else {
-      nrHit <- input$stIndex + input$number - 1
-      dataTrace <- as.data.frame(read.table(file=filein2$datapath, sep='\t',header=T,check.names=FALSE,comment.char="",nrows=nrHit))
-
-      ## get subset of dataTrace if a list of genes is given
-      if(input$geneList_selected == 'from file'){
-        if(!is.null(listIn)){
-          list <- as.data.frame(read.table(file=listIn$datapath, header=FALSE))
-          dataOrig <- as.data.frame(read.table(file=filein2$datapath, sep='\t',header=T,check.names=FALSE,comment.char=""))
-          dataTrace <- dataOrig[dataOrig$geneID %in% list$V1,]
-        }
-      }
-
-      mdDataTrace <- melt(dataTrace,id="geneID")
-      colnames(mdDataTrace) <- c("geneID","ncbiID","traceability")
-    }
+    # ### (2) LOADING TRACEABILITY MATRIX and merge with input mdData (2) ###
+    # filein2 <- input$file2
+    # if(is.null(filein2)){
+    #   mdDataTrace <- mdData[,c("geneID","ncbiID")]
+    #   mdDataTrace$traceability <- 0
+    # } else {
+    #   nrHit <- input$stIndex + input$number - 1
+    #   dataTrace <- as.data.frame(read.table(file=filein2$datapath, sep='\t',header=T,check.names=FALSE,comment.char="",nrows=nrHit))
+    # 
+    #   ## get subset of dataTrace if a list of genes is given
+    #   if(input$geneList_selected == 'from file'){
+    #     if(!is.null(listIn)){
+    #       list <- as.data.frame(read.table(file=listIn$datapath, header=FALSE))
+    #       dataOrig <- as.data.frame(read.table(file=filein2$datapath, sep='\t',header=T,check.names=FALSE,comment.char=""))
+    #       dataTrace <- dataOrig[dataOrig$geneID %in% list$V1,]
+    #     }
+    #   }
+    # 
+    #   mdDataTrace <- melt(dataTrace,id="geneID")
+    #   colnames(mdDataTrace) <- c("geneID","ncbiID","traceability")
+    # }
 
     ### (3) GET SORTED TAXONOMY LIST (3) ###
     taxaList <- sortedTaxaList()
@@ -650,7 +650,7 @@ shinyServer(function(input, output, session) {
     # merge mdData, mdDataTrace and taxaList to get taxonomy info
     taxaMdData <- merge(mdData,taxaList,by='ncbiID')
     taxaMdData$fas <- as.numeric(as.character(taxaMdData$fas))
-    taxaMdDataTrace <- merge(mdDataTrace,taxaList,by='ncbiID')  #################### FOR TRACEABILITY SCORES
+    taxaMdData$traceability <- as.numeric(as.character(taxaMdData$traceability))
 
     # ### (4) calculate PERCENTAGE of PRESENT SPECIES (4) ###
     finalPresSpecDt <- calcPresSpec(taxaMdData, taxaCount)
@@ -663,9 +663,12 @@ shinyServer(function(input, output, session) {
     colnames(maxFasDt) <- c("supertaxon","geneID","maxFas")
 
     ### (6) calculate mean TRACEABILITY SCORES for each super taxon (6) ###
-    meanTraceDt <- aggregate(taxaMdDataTrace[,"traceability"],list(taxaMdDataTrace$supertaxon,taxaMdDataTrace$geneID),mean)
-    colnames(meanTraceDt) <- c("supertaxon","geneID","traceability")
-
+    # remove NA rows from taxaMdData
+    taxaMdDataNoNA_trace <- taxaMdData[!is.na(taxaMdData$traceability),]
+    # calculate mean trace
+    meanTraceDt <- aggregate(taxaMdDataNoNA_trace[,"traceability"],list(taxaMdDataNoNA_trace$supertaxon,taxaMdDataNoNA_trace$geneID),FUN=mean)
+    colnames(meanTraceDt) <- c("supertaxon","geneID","meanTraceability")
+    
     ### (5+6) & join mean traceability together with max fas scores into one df (5+6)
     scoreDf <- merge(maxFasDt,meanTraceDt, by=c("supertaxon","geneID"), all = TRUE)
 
@@ -700,13 +703,14 @@ shinyServer(function(input, output, session) {
     maxOrthoID <- maxOrthoID[!duplicated(maxOrthoID[,1:2]), ]
 
     ### get data set for phyloprofile plotting (contains only supertaxa info)
-    superDf <- subset(fullMdData,select=c('geneID','supertaxon','supertaxonID','maxFas','presSpec','category','traceability'))
+    superDf <- subset(fullMdData,select=c('geneID','supertaxon','supertaxonID','maxFas','presSpec','category','meanTraceability'))
     superDf <- superDf[!duplicated(superDf), ]
     superDfExt <- merge(superDf,maxOrthoID, by=c('geneID','supertaxon'),all.x=TRUE)
-    superDfExt <- superDfExt[,c("geneID","supertaxon","supertaxonID","maxFas","presSpec","category","orthoID","traceability")]
+    superDfExt <- superDfExt[,c("geneID","supertaxon","supertaxonID","maxFas","presSpec","category","orthoID","meanTraceability")]
 
     ### output
     names(superDfExt)[names(superDfExt)=="maxFas"] <- "fas"
+    names(superDfExt)[names(superDfExt)=="meanTraceability"] <- "traceability"
     superDfExt
   })
 
@@ -1867,11 +1871,11 @@ shinyServer(function(input, output, session) {
     #data <- allTaxaList()
     #data <- sortedTaxaList()
     #data <- preDataFiltered()
-    #data <- dataFiltered()
+    data <- dataFiltered()
     #data <- dataSupertaxa()
     #data <- dataHeat()
     #data <- detailPlotDt()
-    data <- presSpecAllDt()
+    #data <- presSpecAllDt()
     #data <- downloadData()
     data
   })
