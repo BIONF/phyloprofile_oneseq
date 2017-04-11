@@ -619,28 +619,6 @@ shinyServer(function(input, output, session) {
     colnames(mdData) <- c("geneID","ncbiID","value","orthoID","fas","traceability")
     mdData <- mdData[,c("geneID","ncbiID","fas","orthoID","traceability")]
 
-    # ### (2) LOADING TRACEABILITY MATRIX and merge with input mdData (2) ###
-    # filein2 <- input$file2
-    # if(is.null(filein2)){
-    #   mdDataTrace <- mdData[,c("geneID","ncbiID")]
-    #   mdDataTrace$traceability <- 0
-    # } else {
-    #   nrHit <- input$stIndex + input$number - 1
-    #   dataTrace <- as.data.frame(read.table(file=filein2$datapath, sep='\t',header=T,check.names=FALSE,comment.char="",nrows=nrHit))
-    # 
-    #   ## get subset of dataTrace if a list of genes is given
-    #   if(input$geneList_selected == 'from file'){
-    #     if(!is.null(listIn)){
-    #       list <- as.data.frame(read.table(file=listIn$datapath, header=FALSE))
-    #       dataOrig <- as.data.frame(read.table(file=filein2$datapath, sep='\t',header=T,check.names=FALSE,comment.char=""))
-    #       dataTrace <- dataOrig[dataOrig$geneID %in% list$V1,]
-    #     }
-    #   }
-    # 
-    #   mdDataTrace <- melt(dataTrace,id="geneID")
-    #   colnames(mdDataTrace) <- c("geneID","ncbiID","traceability")
-    # }
-
     ### (3) GET SORTED TAXONOMY LIST (3) ###
     taxaList <- sortedTaxaList()
 
@@ -665,10 +643,16 @@ shinyServer(function(input, output, session) {
     ### (6) calculate mean TRACEABILITY SCORES for each super taxon (6) ###
     # remove NA rows from taxaMdData
     taxaMdDataNoNA_trace <- taxaMdData[!is.na(taxaMdData$traceability),]
-    # calculate mean trace
-    meanTraceDt <- aggregate(taxaMdDataNoNA_trace[,"traceability"],list(taxaMdDataNoNA_trace$supertaxon,taxaMdDataNoNA_trace$geneID),FUN=mean)
-    colnames(meanTraceDt) <- c("supertaxon","geneID","meanTraceability")
-    
+
+    # calculate mean trace (if any)
+    if(nrow(taxaMdDataNoNA_trace) > 0){
+      meanTraceDt <- aggregate(taxaMdDataNoNA_trace[,"traceability"],list(taxaMdDataNoNA_trace$supertaxon,taxaMdDataNoNA_trace$geneID),FUN=mean)
+      colnames(meanTraceDt) <- c("supertaxon","geneID","meanTraceability")
+    } else {
+      meanTraceDt <- taxaMdData[,c("supertaxon","geneID")]
+      meanTraceDt$meanTraceability <- 0
+    }
+
     ### (5+6) & join mean traceability together with max fas scores into one df (5+6)
     scoreDf <- merge(maxFasDt,meanTraceDt, by=c("supertaxon","geneID"), all = TRUE)
 
@@ -1947,12 +1931,12 @@ shinyServer(function(input, output, session) {
     #data <- allTaxaList()
     #data <- sortedTaxaList()
     #data <- preDataFiltered()
-    #data <- dataFiltered()
+    data <- dataFiltered()
     #data <- dataSupertaxa()
     #data <- dataHeat()
     #data <- detailPlotDt()
     #data <- presSpecAllDt()
-    data <- downloadData()
+    #data <- downloadData()
     data
   })
 
