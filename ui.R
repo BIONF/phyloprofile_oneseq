@@ -148,7 +148,7 @@ shinyUI(fluidPage(
                  em(strong("RELOAD THIS TOOL TO UPLOAD A NEW INPUT FILE!!!",style = "color:red"))
                ),
                
-               fileInput("file1",h5("Presence/absence file:")),
+               fileInput("mainInput",h5("Presence/absence file:")),
                strong(h4("Additional annotation file:")),
                fileInput("file3",h5("")),
                
@@ -321,6 +321,22 @@ shinyUI(fluidPage(
                  ),
                  tabPanel("Q&A",
                           uiOutput("help.ui")
+                 ),
+                 tabPanel("Search for NCBI taxonomy IDs",
+                          column(3,
+                                 fileInput("taxaList",h4("Upload taxa list")),
+                                 bsButton("idSearch","Search")
+                          ),
+                          column(9,
+                                 h4("Mismatch(es):"),
+                                 dataTableOutput("notfoundTaxa"),
+                                 downloadButton("downloadNotFoundTaxa","Download"),
+                                 
+                                 hr(),
+                                 h4("Retrieved taxonomy ID(s):"),
+                                 dataTableOutput("taxaID"),
+                                 downloadButton("downloadTaxaID","Download")
+                          )
                  )
       )
     ),
