@@ -148,7 +148,7 @@ shinyUI(fluidPage(
                  em(strong("RELOAD THIS TOOL TO UPLOAD A NEW INPUT FILE!!!",style = "color:red"))
                ),
                
-               fileInput("mainInput",h5("Presence/absence file:")),
+               fileInput("mainInput",h5("Upload input file:")),
                strong(h4("Additional annotation file:")),
                fileInput("file3",h5("")),
                
@@ -267,16 +267,19 @@ shinyUI(fluidPage(
                        uiOutput("selected.distribution"),
                        conditionalPanel(
                          condition = "input.selected_dist == 'FAS'",
+                         downloadButton("fasDistDownload","Download"),
                          uiOutput("fasDist.ui")
                        ),
                        
                        conditionalPanel(
                          condition = "input.selected_dist == 'Traceability'",
+                         downloadButton("traceDistDownload","Download"),
                          uiOutput("traceDist.ui")
                        ),
                        
                        conditionalPanel(
                          condition = "input.selected_dist == '% present taxa'",
+                         downloadButton("presSpecDownload","Download"),
                          uiOutput("presSpec.ui")
                        )
               )

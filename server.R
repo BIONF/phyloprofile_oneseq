@@ -1,7 +1,7 @@
 if (!require("shiny")) {install.packages("shiny")}
 if (!require("shinyBS")) {install.packages("shinyBS")}
 if (!require("ggplot2")) {install.packages("ggplot2")}
-if (!require("reshape")) {install.packages("reshape")}
+if (!require("reshape2")) {install.packages("reshape2")}
 if (!require("plyr")) {install.packages("plyr")}
 if (!require("dplyr")) {install.packages("dplyr")}
 if (!require("tidyr")) {install.packages("tidyr")}
@@ -1230,15 +1230,20 @@ shinyServer(function(input, output, session) {
     
     # open main input file
     filein <- input$mainInput
-    dataOrig <- as.data.frame(read.table(file=filein$datapath, sep='\t',header=T,check.names=FALSE,comment.char=""))
     
-    # convert into long format and remove line that contain NA (no ortholog)
-    mdData <- melt(dataOrig,id="geneID")
-    
-    # split "orthoID#fas#trace" into 3 columns
-    splitDt <- as.data.frame(str_split_fixed(mdData$value, '#', 3))
-    colnames(splitDt) <- c("orthoID","fas","traceability")
-    splitDt <- splitDt[splitDt$fas != "NA",]
+    if(checkLongFormat() == TRUE){
+      dataOrig <- as.data.frame(read.table(file=filein$datapath, sep='\t',header=T,check.names=FALSE,comment.char=""))
+      colnames(dataOrig) <- c("geneID","ncbiID","orthoID","fas","traceability")
+      splitDt <- dataOrig[,c("orthoID","fas","traceability")]
+    } else {
+      dataOrig <- as.data.frame(read.table(file=filein$datapath, sep='\t',header=T,check.names=FALSE,comment.char=""))
+      # convert into long format and remove line that contain NA (no ortholog)
+      mdData <- melt(dataOrig,id="geneID")
+      
+      # split "orthoID#var1#var2" into 3 columns
+      splitDt <- as.data.frame(str_split_fixed(mdData$value, '#', 3))
+      colnames(splitDt) <- c("orthoID","fas","traceability")
+    }
     
     # convert factor into numeric for "fas" and "traceability" column
     splitDt$fas<-as.numeric(as.character(splitDt$fas))
@@ -1257,21 +1262,21 @@ shinyServer(function(input, output, session) {
     if (v$doPlot == FALSE) return()
 
     splitDt <- distDf()
-    # calculate mean FAS score
-    cdat <- ddply(splitDt, "type", summarise, rating.mean=mean(fas))
-    
+
+    splitDt <- splitDt[!is.na(splitDt$fas),]
+    splitDt$mean <- mean(splitDt$fas)
+
     # plot fas score distribution
     p <- ggplot(splitDt, aes(x=fas)) +
       geom_histogram(binwidth=.01, alpha=.5, position="identity") +
-      geom_vline(data=cdat, aes(xintercept=rating.mean,  colour=type),
+      geom_vline(data=splitDt, aes(xintercept=splitDt$mean,colour="red"),
                  linetype="dashed", size=1) +
-      ggtitle(paste("Mean",input$fas,"=",round(mean(splitDt$fas),3))) +
       theme_minimal()
     p <- p + theme(legend.position = "none",
                    plot.title = element_text(hjust = 0.5),
                    axis.title.x = element_text(size=input$xSize),axis.text.x = element_text(size=input$xSize),
                    axis.title.y = element_text(size=input$ySize),axis.text.y = element_text(size=input$ySize)) +
-      labs(x = "FAS score", y = "Frequency")
+      labs(x = paste0("FAS score (mean = ",round(mean(splitDt$fas),3),")"), y = "Frequency")
     p
   }
 
@@ -1314,26 +1319,32 @@ shinyServer(function(input, output, session) {
     }
   })
   
+  output$fasDistDownload <- downloadHandler(
+    filename = function() {paste0("fasDistribution.pdf")},
+    content = function(file) {
+      ggsave(file, plot = fasDistPlot(), dpi=300, device = "pdf", limitsize=FALSE)
+    }
+  )
+  
   ###### TRACEABILITY score distribution plot
   traceDistPlot <- function(){
     if (v$doPlot == FALSE) return()
     
     splitDt <- distDf()
-    # calculate mean FAS score
-    cdat <- ddply(splitDt, "type", summarise, rating.mean=mean(traceability))
-    
+    splitDt <- splitDt[!is.na(splitDt$traceability),]
+    splitDt$mean <- mean(splitDt$traceability)
+
     # plot trace score distribution
     p <- ggplot(splitDt, aes(x=traceability)) +
       geom_histogram(binwidth=.01, alpha=.5, position="identity") +
-      geom_vline(data=cdat, aes(xintercept=rating.mean,  colour=type),
+      geom_vline(data=splitDt, aes(xintercept=splitDt$mean,colour="red"),
                  linetype="dashed", size=1) +
-      ggtitle(paste("Mean",input$tracebility,"=",round(mean(splitDt$traceability),3))) +
       theme_minimal()
     p <- p + theme(legend.position = "none",
                    plot.title = element_text(hjust = 0.5),
                    axis.title.x = element_text(size=input$xSize),axis.text.x = element_text(size=input$xSize),
                    axis.title.y = element_text(size=input$ySize),axis.text.y = element_text(size=input$ySize)) +
-      labs(x = "Traceability score", y = "Frequency")
+      labs(x = paste0("Traceability score (mean = ",round(mean(splitDt$traceability),3),")"), y = "Frequency")
     p
   }
   
@@ -1376,24 +1387,53 @@ shinyServer(function(input, output, session) {
     }
   })
 
+  output$traceDistDownload <- downloadHandler(
+    filename = function() {paste0("traceabilityDistribution.pdf")},
+    content = function(file) {
+      ggsave(file, plot = traceDistPlot(), dpi=300, device = "pdf", limitsize=FALSE)
+    }
+  )
+  
   ####### % present species distribution plot
   
   ## calculate % present species for input file
   presSpecAllDt <- reactive({
     # open main input file
     filein <- input$mainInput
-    data <- as.data.frame(read.table(file=filein$datapath, sep='\t',header=T,check.names=FALSE,comment.char=""))
+    # if(checkLongFormat() == TRUE){
+    #   data <- long2wide(filein)
+    # } else {
+    #   data <- as.data.frame(read.table(file=filein$datapath, sep='\t',header=T,check.names=FALSE,comment.char=""))
+    # }
     
-    # convert into paired columns
-    mdData <- melt(data,id="geneID")
+    if(checkLongFormat() == TRUE){
+      #      data <- long2wide(filein)
+      mdData <- as.data.frame(read.table(file=filein$datapath, sep='\t',header=T,check.names=FALSE,comment.char=""))
+      colnames(mdData) <- c("geneID","ncbiID","orthoID","fas","traceability")
+    } else {
+      data <- as.data.frame(read.table(file=filein$datapath, sep='\t',header=T,check.names=FALSE,comment.char=""))
+      # convert into paired columns
+      mdData <- melt(data,id="geneID")
+      
+      # split value column into orthoID, var1 & var2
+      splitDt <- (str_split_fixed(mdData$value, '#', 3))
+      # then join them back to mdData
+      mdData <- cbind(mdData,splitDt)
+      # rename columns
+      colnames(mdData) <- c("geneID","ncbiID","value","orthoID","fas","traceability")
+      mdData <- mdData[,c("geneID","ncbiID","orthoID","fas","traceability")]
+    }
     
-    # split value column into orthoID and fas, traceability
-    splitDt <- (str_split_fixed(mdData$value, '#', 3))
-    # then join them back to mdData
-    mdData <- cbind(mdData,splitDt)
-    # rename columns
-    colnames(mdData) <- c("geneID","ncbiID","value","orthoID","fas","traceability")
-    mdData <- mdData[,c("geneID","ncbiID","fas","orthoID","traceability")]
+    # # convert into paired columns
+    # mdData <- melt(data,id="geneID")
+    # 
+    # # split value column into orthoID and fas, traceability
+    # splitDt <- (str_split_fixed(mdData$value, '#', 3))
+    # # then join them back to mdData
+    # mdData <- cbind(mdData,splitDt)
+    # # rename columns
+    # colnames(mdData) <- c("geneID","ncbiID","value","orthoID","fas","traceability")
+    # mdData <- mdData[,c("geneID","ncbiID","fas","orthoID","traceability")]
     
     ### (3) GET SORTED TAXONOMY LIST (3) ###
     taxaList <- sortedTaxaList()
@@ -1426,21 +1466,19 @@ shinyServer(function(input, output, session) {
     }
     
     # calculate mean presSpec score
-    dt$type <- "none"
-    cdat <- ddply(dt, "type", summarise, rating.mean=mean(presSpec))
+    dt$mean <- mean(dt$presSpec)
     
     # plot %presSpec score distribution
     p <- ggplot(dt, aes(x=presSpec)) +
       geom_histogram(binwidth=.01, alpha=.5, position="identity") +
-      geom_vline(data=cdat, aes(xintercept=rating.mean,  colour=type),
+      geom_vline(data=dt, aes(xintercept=dt$mean,colour="red"),
                  linetype="dashed", size=1) +
-      ggtitle(paste("Mean % present taxa = ",round(mean(dt$presSpec),3))) +
       theme_minimal()
     p <- p + theme(legend.position = "none",
                    plot.title = element_text(hjust = 0.5),
                    axis.title.x = element_text(size=input$xSize),axis.text.x = element_text(size=input$xSize),
                    axis.title.y = element_text(size=input$ySize),axis.text.y = element_text(size=input$ySize)) +
-      labs(x = "% present taxa", y = "Frequency")
+      labs(x = paste0("% present taxa (mean = ",round(mean(dt$presSpec),3),")"), y = "Frequency")
     p
   }
 
@@ -1482,6 +1520,13 @@ shinyServer(function(input, output, session) {
       }
     }
   })
+  
+  output$presSpecDownload <- downloadHandler(
+    filename = function() {paste0("percentageTaxaDistribution.pdf")},
+    content = function(file) {
+      ggsave(file, plot = presSpecPlot(), dpi=300, device = "pdf", limitsize=FALSE)
+    }
+  )
   
   #############################################################
   ################# PLOT SELECTED SEQUENCES ###################
@@ -2073,8 +2118,8 @@ shinyServer(function(input, output, session) {
     #data <- dataSupertaxa()
     #data <- dataHeat()
     #data <- detailPlotDt()
-    #data <- presSpecAllDt()
-    data <- downloadData()
+    data <- presSpecAllDt()
+    #data <- downloadData()
     data
   })
 
