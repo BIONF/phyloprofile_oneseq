@@ -1999,7 +1999,7 @@ shinyServer(function(input, output, session) {
 
       grepID = paste(group,"#",ortho,sep="")
       subDomainDf <- domainDf[grep(grepID,domainDf$seedID),]
-
+      
       ### ortho domains df
       orthoDf <- filter(subDomainDf,orthoID==ortho)
       orthoDf$feature <- as.character(orthoDf$feature)
@@ -2064,7 +2064,12 @@ shinyServer(function(input, output, session) {
     }
   )
 
-
+  output$selectedDownload <- downloadHandler(
+    filename = function() {c("selected_plot.pdf")},
+    content = function(file) {
+      ggsave(file, plot = selectedPlot(), width = input$selectedWidth*0.056458333, height = input$selectedHeight*0.056458333, units="cm", dpi=300, device = "pdf", limitsize=FALSE)
+    }
+  )
 
   #############################################################
   ############### FILTERED DATA FOR DOWNLOADING ###############
@@ -2118,8 +2123,8 @@ shinyServer(function(input, output, session) {
     #data <- dataSupertaxa()
     #data <- dataHeat()
     #data <- detailPlotDt()
-    data <- presSpecAllDt()
-    #data <- downloadData()
+    #data <- presSpecAllDt()
+    data <- downloadData()
     data
   })
 
