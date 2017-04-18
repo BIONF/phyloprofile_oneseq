@@ -320,7 +320,8 @@ shinyUI(fluidPage(
       ########## OTHERS TAB ###########
       navbarMenu("More",
                  tabPanel("Description",
-                          img(src="beschreibung.jpg", align = "left", height=600, width=800)
+                          HTML('<iframe width="560" height="315" src="https://www.youtube.com/embed/Udt316KoM6Y" frameborder="0" allowfullscreen></iframe>')
+                          #img(src="beschreibung.jpg", align = "left", height=600, width=800)
                  ),
                  tabPanel("Q&A",
                           uiOutput("help.ui")
@@ -340,6 +341,8 @@ shinyUI(fluidPage(
                                  dataTableOutput("taxaID"),
                                  downloadButton("downloadTaxaID","Download")
                           )
+                 ),
+                 tabPanel(a("About", href="https://trvinh.github.io/phyloprofile/", target="_blank")
                  )
       )
     ),
