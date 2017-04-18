@@ -16,6 +16,7 @@ if (!require("Biostrings")) {
   source("https://bioconductor.org/biocLite.R")
   biocLite("Biostrings")
 }
+if (!require("taxize")) {install.packages("taxize")}
 
 #############################################################
 ######################## FUNCTIONS ##########################
@@ -159,8 +160,6 @@ shinyServer(function(input, output, session) {
   ##### retrieve ID for list of taxa names
   taxaID <- reactive({
     if(input$idSearch > 0){
-      if (!require("taxize")) {install.packages("taxize")}
-      
       taxain <- input$taxaList
       if(is.null(taxain)){return()}
       
@@ -2061,13 +2060,6 @@ shinyServer(function(input, output, session) {
       g <- archiPlot()
       grid.draw(g)
       ggsave(file, plot = g, width = input$archiWidth*0.056458333, height = input$archiHeight*0.056458333, units="cm", dpi=300)#, device = "svg")
-    }
-  )
-
-  output$selectedDownload <- downloadHandler(
-    filename = function() {c("selected_plot.pdf")},
-    content = function(file) {
-      ggsave(file, plot = selectedPlot(), width = input$selectedWidth*0.056458333, height = input$selectedHeight*0.056458333, units="cm", dpi=300, device = "pdf", limitsize=FALSE)
     }
   )
 
