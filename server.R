@@ -400,11 +400,11 @@ shinyServer(function(input, output, session) {
       else{
         if(checkLongFormat() == TRUE){
           inputMod <- long2wide(filein)
-          titleline <- colnames(inputMod)
+          titleline <- toString(paste(colnames(inputMod),collapse = "\t"))
         } else {
           titleline <- readLines(filein$datapath, n=1)
         }
-        
+
         # Create 0-row data frame which will be used to store data
         dat <- data.frame(x = numeric(0), y = numeric(0))   ### use for progess bar
         withProgress(message = 'Parsing input file', value = 0, {
