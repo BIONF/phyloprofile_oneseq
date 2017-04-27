@@ -129,7 +129,7 @@ sortDomains <- function(seedDf, orthoDf){
 }
 
 ######## function for plotting domain architecture ########
-domain.plotting <- function(df,geneID,var1,sep,labelSize,titleSize,minStart,maxEnd){
+domain.plotting <- function(df,geneID,var1,sep,labelSize,titleSize,descSize,minStart,maxEnd){
   gg <- ggplot(df, aes(y=feature, x=end, color = feature)) +
     geom_segment(data=df, aes(y=feature, yend=feature, x=minStart, xend=maxEnd), color="#b2b2b2", size=0.15)
   
@@ -142,13 +142,13 @@ domain.plotting <- function(df,geneID,var1,sep,labelSize,titleSize,minStart,maxE
   ### add text above
   gg <- gg + geom_text(data=df,
                        aes(x=(start+end)/2, y=feature, label=round(weight,2)),
-                       color="#9fb059", size=2.5, vjust=-0.75, fontface="bold", family="Calibri")
+                       color="#9fb059", size=descSize, vjust=-0.75, fontface="bold", family="serif")
   
   ### theme format
   titleMod <- gsub(":",sep,geneID)
   gg <- gg + scale_y_discrete(expand=c(0.075,0))
   gg <- gg + labs(title=paste0(titleMod," - ",var1))
-  gg <- gg + theme_bw(base_family="Calibri")
+  gg <- gg + theme_minimal()
   gg <- gg + theme(panel.border=element_blank())
   gg <- gg + theme(axis.ticks=element_blank())
   gg <- gg + theme(plot.title=element_text(face="bold",size=titleSize))
@@ -2202,8 +2202,8 @@ shinyServer(function(input, output, session) {
       ### plotting
       sep = ":"
       if(!is.null(input$oneSeqFasta)){sep="|"}
-      plot_ortho <- domain.plotting(orderedOrthoDf,ortho,var1,sep,input$labelArchiSize,input$titleArchiSize,min(subDomainDf$start),max(subDomainDf$end))
-      plot_seed <- domain.plotting(orderedSeedDf,seed,var1,sep,input$labelArchiSize,input$titleArchiSize,min(subDomainDf$start),max(subDomainDf$end))
+      plot_ortho <- domain.plotting(orderedOrthoDf,ortho,var1,sep,input$labelArchiSize,input$titleArchiSize,input$labelDescSize,min(subDomainDf$start),max(subDomainDf$end))
+      plot_seed <- domain.plotting(orderedSeedDf,seed,var1,sep,input$labelArchiSize,input$titleArchiSize,input$labelDescSize,min(subDomainDf$start),max(subDomainDf$end))
       
       # grid.arrange(plot_seed,plot_ortho,ncol=1)
       arrangeGrob(plot_seed,plot_ortho,ncol=1)
@@ -2257,9 +2257,14 @@ shinyServer(function(input, output, session) {
     dataOut <- as.data.frame(dataOut[dataOut$presSpec > 0,])
     dataOut <- dataOut[!is.na(dataOut$geneID),]
     
-    dataOut <- as.data.frame(dataOut[dataOut$presSpec >= input$percent[1] 
-                                     & dataOut$var1 >= input$var1[1] & dataOut$var1 <= input$var1[2]
-                                     & dataOut$var2 >= input$var2[1] & dataOut$var2 <= input$var2[2],])
+    dataOut <- as.data.frame(dataOut[dataOut$presSpec >= input$percent[1],])
+    dataOut <- as.data.frame(dataOut[dataOut$var1 >= input$var1[1] & dataOut$var1 <= input$var1[2],])
+    
+    if(!all(is.na(dataOut$var2))){
+      dataOut <- as.data.frame(dataOut[dataOut$var2 >= input$var2[1] & dataOut$var2 <= input$var2[2],])
+    } else {
+      dataOut$var2 <- 0
+    }
     
     dataOut <- dataOut[,c("geneID","orthoID","fullName","ncbiID","supertaxon","var1","var2","numberSpec","presSpec")]
     dataOut <- dataOut[order(dataOut$geneID,dataOut$supertaxon),]
@@ -2363,9 +2368,9 @@ shinyServer(function(input, output, session) {
       <p>contact:&nbsp;<a href="mailto:tran@bio.uni-frankfurt.de">tran@bio.uni-frankfurt.de</a></p>
       <p>Please check the latest version at&nbsp;<a href="https://github.com/trvinh/phyloprofile">https://github.com/trvinh/phyloprofile</a></p>
       '
-      )
+  )
   })
-
+  
   ############### USED FOR TESTING
   output$testOutput <- renderText({
     # ### print infile
@@ -2379,4 +2384,4 @@ shinyServer(function(input, output, session) {
     # print(input$plot_dblclick$x)
     # paste(input$var1[1],input$var1[2])
   })
-})
+  })
