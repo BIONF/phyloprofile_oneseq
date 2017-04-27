@@ -196,6 +196,16 @@ options(shiny.maxRequestSize=30*1024^2)  ## size limit for input 30mb
 shinyServer(function(input, output, session) {
   #  session$onSessionEnded(stopApp) ### Automatically stop a Shiny app when closing the browser tab
   
+  ########## uncomment these lines for oneseq version#########
+  observeEvent(input$mainInput,({
+    updateSelectInput(session,"var2_aggregateBy",
+                      choices = list("Max"="max", "Min"="min","Mean"="mean","Median"="median"),
+                      selected = "mean")
+    updateTextInput(session,"var1_id", value = "FAS")
+    updateTextInput(session,"var2_id", value = "Traceability")
+  }))
+  #############################################################
+  
   #############################################################
   ####################  PRE-PROCESSING  #######################
   #############################################################
@@ -290,7 +300,7 @@ shinyServer(function(input, output, session) {
   ######## render textinput for variable 1 & 2
   output$var1_id.ui <- renderUI({
     filein <- input$mainInput
-    if(is.null(filein)){return(textInput("var1_id", h5("First variable:"), value = "FAS", width="100%", placeholder="Name of first variable"))}    # get var1/var2 names based on input (only if input file in long format table)
+    if(is.null(filein)){return(textInput("var1_id", h5("First variable:"), value = "Variable 1", width="100%", placeholder="Name of first variable"))}    # get var1/var2 names based on input (only if input file in long format table)
     
     if(checkLongFormat() == TRUE){
       headerIn <- readLines(filein$datapath, n = 1)
@@ -304,7 +314,7 @@ shinyServer(function(input, output, session) {
   
   output$var2_id.ui <- renderUI({
     filein <- input$mainInput
-    if(is.null(filein)){return(textInput("var2_id", h5("Second variable:"), value = "Traceability", width="100%", placeholder="Name of second variable"))}    # get var1/var2 names based on input (only if input file in long format table)
+    if(is.null(filein)){return(textInput("var2_id", h5("Second variable:"), value = "Variable 2", width="100%", placeholder="Name of second variable"))}    # get var1/var2 names based on input (only if input file in long format table)
     if(checkLongFormat() == TRUE){
       headerIn <- readLines(filein$datapath, n = 1)
       headerIn <- unlist(strsplit(headerIn,split = '\t'))
@@ -473,6 +483,28 @@ shinyServer(function(input, output, session) {
     }
   })
   
+  ######## get input taxa (a subset of available taxa in taxonID.list.fullRankID)
+  subsetTaxa <- reactive({
+    filein <- input$mainInput
+    if(is.null(filein)){return()}
+    
+    if(length(unkTaxa()) == 0){
+      # get list of input taxa (from main input file)
+      if(checkLongFormat() == TRUE){
+        inputMod <- long2wide(filein)
+        inputTaxa <- colnames(inputMod)
+      } else {
+        inputTaxa <- readLines(filein$datapath, n = 1)
+      }
+      
+      inputTaxa <- unlist(strsplit(inputTaxa,split = '\t'))
+      inputTaxa <- inputTaxa[-1]   # remove "geneID" element from vector inputTaxa
+      
+      # return subset of taxonID.list.fullRankID
+      inputTaxa
+    }
+  })
+  
   ######## enable "add taxa", "parse" & "upload additional files" button after uploading main file
   observeEvent(input$mainInput, ({
     updateButton(session, "parse", disabled = FALSE)
@@ -538,6 +570,7 @@ shinyServer(function(input, output, session) {
     if(rankSelect == ""){return()}
     ### load list of unsorted taxa
     Dt <- as.data.frame(read.table("data/taxonID.list.fullRankID", sep='\t',header=T))
+    Dt <- Dt[Dt$abbrName  %in% subsetTaxa(),]
     
     ### load list of taxon name
     nameList <- as.data.frame(read.table("data/taxonNamesReduced.txt", sep='\t',header=T,fill = TRUE))
@@ -670,6 +703,19 @@ shinyServer(function(input, output, session) {
     }
   })
   
+  #### disable clusterGene if input has only 1 gene
+  observe({
+    filein <- input$mainInput
+    if(is.null(filein)){return()}
+    else{
+      dt <- as.data.frame(read.table(file=filein$datapath, sep='\t',header=T,check.names=FALSE,comment.char=""))
+      
+      if(nrow(dt) < 2){
+        toggleState("clusterGene")
+      } 
+    }
+  })
+  
   #############################################################
   ######################  ADD NEW TAXA  #######################
   #############################################################
@@ -715,6 +761,7 @@ shinyServer(function(input, output, session) {
     
     ### load list of unsorted taxa
     Dt <- as.data.frame(read.table("data/taxonID.list.fullRankID", sep='\t',header=T))
+    Dt <- Dt[Dt$abbrName  %in% subsetTaxa(),]
     
     ### reduce the number of columns in the iriginal data frame by removing duplicate columns
     # transpose orig dataframe
@@ -2196,6 +2243,7 @@ shinyServer(function(input, output, session) {
     }
   )
   
+  
   #############################################################
   ############### FILTERED DATA FOR DOWNLOADING ###############
   #############################################################
@@ -2315,9 +2363,9 @@ shinyServer(function(input, output, session) {
       <p>contact:&nbsp;<a href="mailto:tran@bio.uni-frankfurt.de">tran@bio.uni-frankfurt.de</a></p>
       <p>Please check the latest version at&nbsp;<a href="https://github.com/trvinh/phyloprofile">https://github.com/trvinh/phyloprofile</a></p>
       '
-  )
+      )
   })
-  
+
   ############### USED FOR TESTING
   output$testOutput <- renderText({
     # ### print infile
