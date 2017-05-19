@@ -924,7 +924,7 @@ shinyServer(function(input, output, session) {
     mdData <- melt(data,id="geneID")
     
     # replace NA value with "NA#NA" (otherwise the corresponding orthoID will be empty)
-    mdData$value <- suppressWarnings(as.character(mdData$value))
+    mdData$value <- as.character(mdData$value)
     mdData$value[is.na(mdData$value)] <- "NA#NA"
     
     # split value column into orthoID, var1 & var2
@@ -1433,13 +1433,25 @@ shinyServer(function(input, output, session) {
       splitDt <- dataOrig[,c("orthoID","var1","var2")]
     } else {
       dataOrig <- as.data.frame(read.table(file=filein$datapath, sep='\t',header=T,check.names=FALSE,comment.char=""))
-      # convert into long format and remove line that contain NA (no ortholog)
+      # convert into paired columns
       mdData <- melt(dataOrig,id="geneID")
-      #    mdData <- mdData[!is.na(mdData$value),]
+      
+      # replace NA value with "NA#NA" (otherwise the corresponding orthoID will be empty)
+      mdData$value <- as.character(mdData$value)
+      mdData$value[is.na(mdData$value)] <- "NA#NA"
       
       # split "orthoID#var1#var2" into 3 columns
       splitDt <- as.data.frame(str_split_fixed(mdData$value, '#', 3))
       colnames(splitDt) <- c("orthoID","var1","var2")
+    }
+    
+    splitDt$orthoID[splitDt$orthoID == "NA" | is.na(splitDt$orthoID)] <- NA
+    splitDt <- splitDt[complete.cases(splitDt),]
+    
+    if(length(levels(as.factor(splitDt$var2))) == 1){
+      if(levels(as.factor(splitDt$var2)) == ""){
+        splitDt$var2 <- 0
+      }
     }
     
     # convert factor into numeric for "var1" & "var2" column
@@ -1631,8 +1643,8 @@ shinyServer(function(input, output, session) {
     
     # merge mdData, mdDataTrace and taxaList to get taxonomy info
     taxaMdData <- merge(mdData,taxaList,by='ncbiID')
-    taxaMdData$var1 <- suppressWarnings(as.numeric(as.character(taxaMdData$var1)))
-    taxaMdData$var2 <- suppressWarnings(as.numeric(as.character(taxaMdData$var2)))
+    taxaMdData$var1 <- as.numeric(as.character(taxaMdData$var1))
+    taxaMdData$var2 <- as.numeric(as.character(taxaMdData$var2))
     
     # calculate % present species
     finalPresSpecDt <- calcPresSpec(taxaMdData, taxaCount)
@@ -2304,30 +2316,13 @@ shinyServer(function(input, output, session) {
     }
     
     ### get main input data
-    # filein <- input$mainInput
-    # 
-    # if(checkLongFormat() == TRUE){
-    #   mdData <- as.data.frame(read.table(filein$datapath, sep='\t',header=T,check.names=FALSE,comment.char=""))
-    #   colnames(mdData) <- c("geneID","ncbiID","orthoID","var1","var2")
-    # } else {
-    #   data <- as.data.frame(read.table(filein$datapath, sep='\t',header=T,check.names=FALSE,comment.char=""))
-    #   mdData <- melt(data,id="geneID",factorsAsStrings=F)
-    #   mdData$value <- as.character(mdData$value)
-    #   mdData$value[is.na(mdData$value)] <- "NA#NA"
-    #   
-    #   # split value column into orthoID and fas
-    #   splitDt <- (str_split_fixed(mdData$value, '#', 3))
-    #   # then join them back to mdData
-    #   mdData <- cbind(mdData,splitDt)
-    #   # rename columns
-    #   colnames(mdData) <- c("geneID","ncbiID","value","orthoID","var1","var2")
-    # }
-    
     mdData <- dataFiltered()
     mdData <- mdData[,c("geneID","ncbiID","orthoID","var1","var2","presSpec")]
     
     ### add "category" into mdData
     mdDataExtended <- merge(mdData,catDf,by="ncbiID",all.x = TRUE)
+    mdDataExtended$var1[mdDataExtended$var1 == "NA" | is.na(mdDataExtended$var1)] <- 0
+    mdDataExtended$var2[mdDataExtended$var2 == "NA" | is.na(mdDataExtended$var2)] <- 0
     
     ### remove cat for "NA" orthologs and also for orthologs that do not fit cutoffs
     mdDataExtended[mdDataExtended$orthoID == "NA"| is.na(mdDataExtended$orthoID),]$cat <- NA
@@ -2365,7 +2360,6 @@ shinyServer(function(input, output, session) {
     geneAgeDf
   })
   
-  ##### plot gene ages
   geneAgePlot <- function(){
     if (v$doPlot == FALSE) return()
     
@@ -2656,9 +2650,9 @@ shinyServer(function(input, output, session) {
       <p>contact:&nbsp;<a href="mailto:tran@bio.uni-frankfurt.de">tran@bio.uni-frankfurt.de</a></p>
       <p>Please check the latest version at&nbsp;<a href="https://github.com/trvinh/phyloprofile">https://github.com/trvinh/phyloprofile</a></p>
       '
-      )
+  )
   })
-
+  
   ############### USED FOR TESTING
   output$testOutput <- renderText({
     # ### print infile
@@ -2672,4 +2666,4 @@ shinyServer(function(input, output, session) {
     # print(input$plot_dblclick$x)
     # paste(input$var1[1],input$var1[2])
   })
-})
+  })
