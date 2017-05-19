@@ -304,21 +304,25 @@ shinyUI(fluidPage(
             ),
             
             tabPanel("Gene age estimation",
-                     column(6,
-                            downloadButton("geneAgePlotDownload","Download plot"),
-                            uiOutput("geneAge.ui")
-                     ),
+                     downloadButton("geneAgePlotDownload","Download plot"),
+                     uiOutput("geneAge.ui"),
+                     conditionalPanel(
+                       condition = "input.do",
+                       em(h6("01_Species; 02_Family; 03_Class; 04_Phylum; 
+                             05_Kingdom; 06_Superkingdom; 07_Last universal common ancestor;
+                             Undef_Genes have been filtered out"))
+                       ),
+                     hr(),
                      column(4,
                             downloadButton("geneAgeTableDownload","Download gene list"),
-                            tableOutput("geneAge.table"),
-                            hr(),
                             checkboxInput("addCustomProfile",strong(em("Add to Customized profile")), value = FALSE, width = NULL)
-                     )
-                     
+                     ),
+                     tableOutput("geneAge.table"),
+                     hr()   
+                       )
             )
-          )
-        )
       )
+    )
     ),
     
     ########## CUSTOMIZED PROFILE TAB ###########
@@ -384,7 +388,7 @@ shinyUI(fluidPage(
                tabPanel(a("About", href="https://trvinh.github.io/phyloprofile/", target="_blank")
                )
     )
-  ),
+    ),
   
   ################### LIST OF POP-UP WINDOWS ##########################
   
@@ -507,7 +511,7 @@ shinyUI(fluidPage(
   # )
   
   
-)
+  )
 )
 
 
