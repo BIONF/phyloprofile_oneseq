@@ -197,9 +197,7 @@ shinyUI(fluidPage(
                ),
                hr(),
                
-               strong(h4("Ordering sequence IDs by:")),
-               radioButtons("ordering", "", choices = c("alphabetical","hierarchical cluster","none"), selected = "alphabetical",
-                            inline = F),
+               checkboxInput('ordering','Ordering sequence IDs',value = TRUE),
                hr(),
                
                bsButton("getConfig","FASTA config"),
@@ -263,66 +261,23 @@ shinyUI(fluidPage(
         ),
         
         mainPanel(
-          tabsetPanel(
-            tabPanel("Main plot",
-                     uiOutput("plot.ui"),
-                     
-                     conditionalPanel(
-                       condition = "input.mainXAxisGuide == true | input.mainYAxisGuide == true",
-                       absolutePanel(
-                         id="absAxis",
-                         bottom = 0, left = 0,
-                         heigh = NULL, width = NULL,
-                         fixed = TRUE,
-                         draggable = TRUE,
-                         style = "opacity: 0.80",
-                         
-                         uiOutput("mainAxisRender")
-                       ) 
-                     )
-            ),
-            
-            tabPanel("Distribution plot",
-                     uiOutput("selected.distribution"),
-                     conditionalPanel(
-                       condition = "input.selected_dist == input.var1_id",
-                       downloadButton("var1Download","Download"),
-                       uiOutput("var1Dist.ui")
-                     ),
-                     
-                     conditionalPanel(
-                       condition = "input.selected_dist == input.var2_id",
-                       downloadButton("var2Download","Download"),
-                       uiOutput("var2Dist.ui")
-                     ),
-                     
-                     conditionalPanel(
-                       condition = "input.selected_dist == '% present taxa'",
-                       downloadButton("presSpecDownload","Download"),
-                       uiOutput("presSpec.ui")
-                     )
-            ),
-            
-            tabPanel("Gene age estimation",
-                     downloadButton("geneAgePlotDownload","Download plot"),
-                     uiOutput("geneAge.ui"),
-                     conditionalPanel(
-                       condition = "input.do",
-                       em(h6("01_Species; 02_Family; 03_Class; 04_Phylum; 
-                             05_Kingdom; 06_Superkingdom; 07_Last universal common ancestor;
-                             Undef_Genes have been filtered out"))
-                       ),
-                     hr(),
-                     column(4,
-                            downloadButton("geneAgeTableDownload","Download gene list"),
-                            checkboxInput("addCustomProfile",strong(em("Add to Customized profile")), value = FALSE, width = NULL)
-                     ),
-                     tableOutput("geneAge.table"),
-                     hr()   
-                       )
+          uiOutput("plot.ui"),
+          
+          conditionalPanel(
+            condition = "input.mainXAxisGuide == true | input.mainYAxisGuide == true",
+            absolutePanel(
+              id="absAxis",
+              bottom = 0, left = 0,
+              heigh = NULL, width = NULL,
+              fixed = TRUE,
+              draggable = TRUE,
+              style = "opacity: 0.80",
+              
+              uiOutput("mainAxisRender")
             )
+          )
+        )
       )
-    )
     ),
     
     ########## CUSTOMIZED PROFILE TAB ###########
@@ -348,6 +303,133 @@ shinyUI(fluidPage(
         )
       )
     ),
+    
+    ########## FUNCTION TAB ###########
+    navbarMenu(
+      "Function",
+      tabPanel(
+        "Profiles clustering",
+        h4(strong("Cluster profiles")),
+        
+        wellPanel(
+          fluidRow(
+            column(3,
+                   selectInput("distMethod", label = h5("Distance measure method:"),
+                               choices = list("euclidean" = "euclidean", "maximum" = "maximum", "manhattan" = "manhattan",
+                                              "canberra" = "canberra", "binary" = "binary"),
+                               selected = "euclidean")
+            ),
+            column(3,
+                   selectInput("clusterMethod", label = h5("Cluster method:"),
+                               choices = list("ward.D" = "wardd", "ward.D2" = "wardd2", "single" = "single", "complete" = "complete",
+                                              "average (UPGMA)" = "average", "mcquitty (WPGMA)" = "mcquitty", "median (WPGMC)" = "median","centroid (UPGMC)"="centroid"),
+                               selected = "complete")
+            ),
+            column(1,
+                   numericInput("clusterPlot.width",h5("Width (px)"),min=200,max=3200,step=50,value=600,width=100)
+            ),
+            column(1,
+                   numericInput("clusterPlot.height",h5("Height (px)"),min=200,max=3200,step=50,value=400,width=100)
+            ),
+            column(3,
+                   checkboxInput("applyCluster",em(strong("Apply clustering to heatmaps", style="color:red")),value = FALSE),
+                   uiOutput("applyClusterCheck.ui"),
+                   
+                   tags$head(
+                     tags$style(HTML('#downloadCluster{background-color:#A9E2F3}'))
+                   ),
+                   downloadButton('downloadCluster', 'Download plot')
+            )
+          )
+        ),
+        
+        column(8,
+               #tableOutput("dist.table"),
+               uiOutput("cluster.ui")
+        ),
+        column(4,
+               downloadButton('downloadClusterGenes', 'Download gene list'),
+               checkboxInput('addClusterCustomProfile',strong(em("Add to Customized profile")), value = FALSE, width = NULL),
+               uiOutput("addClusterCustomProfileCheck.ui"),
+               tableOutput("brushedCluster.table")
+        )
+      ),
+      
+      tabPanel(
+        "Distribution analyzing",
+        h4(strong("Distribution analysis")),
+        
+        wellPanel(
+          fluidRow(
+            column(2,
+                   uiOutput("selected.distribution")
+            ),
+            column(2,
+                   uiOutput("var1_dist.ui")
+            ),
+            column(2,
+                   uiOutput("var2_dist.ui")
+            ),
+            column(2,
+                   uiOutput("percent_dist.ui")
+            ),
+            column(1,
+                   numericInput("dist_textSize","Label size",min=2,max=99,step=1,value=12,width=100)
+            ),
+            column(2,
+                   strong("Download"),
+                   tags$head(
+                     tags$style(HTML('#plotDownload_dist{background-color:#A9E2F3}'))
+                   ),
+                   downloadButton('plotDownload_dist','Download plot')
+            )
+          )
+        ),
+        
+        uiOutput("dist_plot.ui")
+      ),
+      
+      tabPanel(
+        "Gene age estimating",
+        h4(strong("Gene age estimation")),
+        
+        wellPanel(
+          fluidRow(
+            column(2,
+                   uiOutput("var1_age.ui")
+            ),
+            column(2,
+                   uiOutput("var2_age.ui")
+            ),
+            column(2,
+                   uiOutput("percent_age.ui")
+            ),
+            column(2,
+                   strong("Download"),
+                   tags$head(
+                     tags$style(HTML('#geneAgePlotDownload{background-color:#A9E2F3}'))
+                   ),
+                   downloadButton("geneAgePlotDownload","Download plot")
+            )
+          )
+        ),
+        
+        uiOutput("geneAge.ui"),
+        conditionalPanel(
+          condition = "input.do",
+          em(h6("01_Species; 02_Family; 03_Class; 04_Phylum; 
+                05_Kingdom; 06_Superkingdom; 07_Last universal common ancestor;
+                Undef_Genes have been filtered out"))
+          ),
+        hr(),
+        column(4,
+               downloadButton("geneAgeTableDownload","Download gene list"),
+               checkboxInput("addCustomProfile",strong(em("Add to Customized profile")), value = FALSE, width = NULL),
+               uiOutput('addCustomProfileCheck.ui')
+        ),
+        tableOutput("geneAge.table")
+          )
+      ),
     
     ########## DATA TAB ###########
     navbarMenu("Download filtered data",
@@ -388,130 +470,128 @@ shinyUI(fluidPage(
                tabPanel(a("About", href="https://trvinh.github.io/phyloprofile/", target="_blank")
                )
     )
-    ),
-  
-  ################### LIST OF POP-UP WINDOWS ##########################
-  
-  ####### popup to confirm parsing data from input file
-  bsModal("addTaxaWindows", "Add new taxa", "addTaxa", size = "medium",
-          helpText(em("Use this form to add taxon that does not exist in NCBI taxonomy database")),
-          textInput("newID","ID (must be a number and greater than 1835343, e.g. 2000001)",2000001,width=500),
-          textInput("newName","Name (e.g. Saccharomyces cerevisiae strain ABC)","",width=500),
-          textInput("newRank","Rank (e.g. \"norank\" (for strain), species, order, etc.)","norank",width=500),
-          textInput("newParent","Parent ID (NCBI taxonomy ID of the next higher rank, e.g. 4932 (S.cerevisiae species))",4932,width=500),
-          actionButton("newAdd","Add"),
-          actionButton("newDone","Done")
-  ),
-  
-  ####### popup to confirm parsing data from input file
-  bsModal("parseConfirm", "Get info from input", "parse", size = "medium",
-          HTML("Parsing taxonomy information from input file?"),
-          actionButton("BUTyes", "Yes"),
-          actionButton("BUTno", "No"),
-          helpText(em("***Note: Please run this step whenever you have a new taxa set. For instance, if you have a new matrix file but the taxa remain the same, then DO NOT re-run this step!***"))
-  ),
-  
-  ####### popup windows for setting plot colors
-  bsModal("color", "Set colors for profile", "setColor", size = "small",
-          colourpicker::colourInput("lowColor_var1", paste("Low variable 1"), value = "darkorange"),
-          colourpicker::colourInput("highColor_var1", "High variable 1", value = "steelblue"),
-          actionButton("defaultColorVar1","Default",style='padding:4px; font-size:100%'),
-          hr(),
-          colourpicker::colourInput("lowColor_var2", "Low variable 2", value = "grey95"),
-          colourpicker::colourInput("highColor_var2", "High variable 2", value = "khaki"),
-          actionButton("defaultColorTrace","Default",style='padding:4px; font-size:100%')
-  ),
-  
-  ####### popup windows for FASTA configurations
-  bsModal("config", "FASTA config", "getConfig", size = "small",
-          selectInput("input_type", "Choose location for:",
-                      c("oneSeq.extended.fa", "Fasta folder")
+),
+
+################### LIST OF POP-UP WINDOWS ##########################
+
+####### popup to confirm parsing data from input file
+bsModal("addTaxaWindows", "Add new taxa", "addTaxa", size = "medium",
+        helpText(em("Use this form to add taxon that does not exist in NCBI taxonomy database")),
+        textInput("newID","ID (must be a number and greater than 1835343, e.g. 2000001)",2000001,width=500),
+        textInput("newName","Name (e.g. Saccharomyces cerevisiae strain ABC)","",width=500),
+        textInput("newRank","Rank (e.g. \"norank\" (for strain), species, order, etc.)","norank",width=500),
+        textInput("newParent","Parent ID (NCBI taxonomy ID of the next higher rank, e.g. 4932 (S.cerevisiae species))",4932,width=500),
+        actionButton("newAdd","Add"),
+        actionButton("newDone","Done")
+),
+
+####### popup to confirm parsing data from input file
+bsModal("parseConfirm", "Get info from input", "parse", size = "medium",
+        HTML("Parsing taxonomy information from input file?"),
+        actionButton("BUTyes", "Yes"),
+        actionButton("BUTno", "No"),
+        helpText(em("***Note: Please run this step whenever you have a new taxa set. For instance, if you have a new matrix file but the taxa remain the same, then DO NOT re-run this step!***"))
+),
+
+####### popup windows for setting plot colors
+bsModal("color", "Set colors for profile", "setColor", size = "small",
+        colourpicker::colourInput("lowColor_var1", paste("Low variable 1"), value = "darkorange"),
+        colourpicker::colourInput("highColor_var1", "High variable 1", value = "steelblue"),
+        actionButton("defaultColorVar1","Default",style='padding:4px; font-size:100%'),
+        hr(),
+        colourpicker::colourInput("lowColor_var2", "Low variable 2", value = "grey95"),
+        colourpicker::colourInput("highColor_var2", "High variable 2", value = "khaki"),
+        actionButton("defaultColorTrace","Default",style='padding:4px; font-size:100%')
+),
+
+####### popup windows for FASTA configurations
+bsModal("config", "FASTA config", "getConfig", size = "small",
+        selectInput("input_type", "Choose location for:",
+                    c("oneSeq.extended.fa", "Fasta folder")
+        ),
+        hr(),
+        conditionalPanel(
+          condition = "input.input_type == 'oneSeq.extended.fa'",
+          #            textInput("oneseq.file","Path:",""),
+          fileInput("oneSeqFasta",""),
+          uiOutput("oneSeq.existCheck")
+          
+        ),
+        conditionalPanel(
+          condition = "input.input_type == 'Fasta folder'",
+          textInput("path","Main path:","")
+          ,selectInput("dir_format","Directory format:",choices=list("path/speciesID.fa*"=1,"path/speciesID/speciesID.fa*"=2),selected="Path/speciesID.fasta")
+          ,selectInput("file_ext","File extension:",choices=list("fa"="fa","fasta"="fasta","fas"="fas","txt"="txt"),selected="fa")
+          ,selectInput("id_format","ID format:",choices=list(">speciesID:seqID"=1,">seqID"=2),selected=2)
+        )
+),
+
+####### popup windows for detailed plot
+bsModal("modalBS", "Detailed plot", "go", size = "large",
+        uiOutput("detailPlot.ui"),
+        numericInput("detailedHeight","plot_height(px)",min=100,max=1600,step=50,value=100,width=100)
+        ,verbatimTextOutput("detailClick")
+        ,actionButton("do3", "Show domain architecture")
+        ,br()
+        ,h4("Sequence:")
+        ,verbatimTextOutput("fasta")
+),
+
+####### popup windows for domain architecture plot
+bsModal("plotArchi","Domain architecture","do3", size = "large",
+        fluidRow(
+          column(2,
+                 numericInput("archiHeight","plot_height(px)",min=100,max=1600,step=50,value=400,width=100)
           ),
-          hr(),
-          conditionalPanel(
-            condition = "input.input_type == 'oneSeq.extended.fa'",
-            #            textInput("oneseq.file","Path:",""),
-            fileInput("oneSeqFasta",""),
-            uiOutput("oneSeq.existCheck")
-            
+          column(2,
+                 numericInput("archiWidth","plot_width(px)",min=100,max=1600,step=50,value=800,width=100)
           ),
-          conditionalPanel(
-            condition = "input.input_type == 'Fasta folder'",
-            textInput("path","Main path:","")
-            ,selectInput("dir_format","Directory format:",choices=list("path/speciesID.fa*"=1,"path/speciesID/speciesID.fa*"=2),selected="Path/speciesID.fasta")
-            ,selectInput("file_ext","File extension:",choices=list("fa"="fa","fasta"="fasta","fas"="fas","txt"="txt"),selected="fa")
-            ,selectInput("id_format","ID format:",choices=list(">speciesID:seqID"=1,">seqID"=2),selected=2)
+          column(2,
+                 numericInput("titleArchiSize","Title size(px)",min=8,max=99,step=1,value=11,width=150)
+          ),
+          column(2,
+                 numericInput("labelArchiSize","SeqID size(px)",min=8,max=99,step=1,value=11,width=150)
+          ),
+          column(2,
+                 numericInput("labelDescSize","Text size(px)",min=0,max=99,step=1,value=3,width=150)
           )
-  ),
-  
-  ####### popup windows for detailed plot
-  bsModal("modalBS", "Detailed plot", "go", size = "large",
-          uiOutput("detailPlot.ui"),
-          numericInput("detailedHeight","plot_height(px)",min=100,max=1600,step=50,value=100,width=100)
-          ,verbatimTextOutput("detailClick")
-          ,actionButton("do3", "Show domain architecture")
-          ,br()
-          ,h4("Sequence:")
-          ,verbatimTextOutput("fasta")
-  ),
-  
-  ####### popup windows for domain architecture plot
-  bsModal("plotArchi","Domain architecture","do3", size = "large",
-          fluidRow(
-            column(2,
-                   numericInput("archiHeight","plot_height(px)",min=100,max=1600,step=50,value=400,width=100)
-            ),
-            column(2,
-                   numericInput("archiWidth","plot_width(px)",min=100,max=1600,step=50,value=800,width=100)
-            ),
-            column(2,
-                   numericInput("titleArchiSize","Title size(px)",min=8,max=99,step=1,value=11,width=150)
-            ),
-            column(2,
-                   numericInput("labelArchiSize","SeqID size(px)",min=8,max=99,step=1,value=11,width=150)
-            ),
-            column(2,
-                   numericInput("labelDescSize","Text size(px)",min=0,max=99,step=1,value=3,width=150)
-            )
-          ),
-          uiOutput("archiPlot.ui"),
-          downloadButton("archiDownload","Download plot")
-  ),
-  
-  ################### POINT INFO BOX ##########################
-  conditionalPanel(
-    condition = "input.tabs=='Main profile' || input.tabs=='Customized profile'",
-    ############# PONIT's INFO BOX
-    absolutePanel(
-      bottom = 5, left = 30,
-      fixed = TRUE,
-      h5("Point's info:"),
-      verbatimTextOutput("pointInfo"),
-      bsButton("go", "Detailed plot", style="success", disabled = FALSE),
-      style = "opacity: 0.80"
-    )
-  )
-  
-  ############# Axis guide BOX
-  # conditionalPanel(
-  #   condition = "input.tabs=='Main profile'",
-  #   
-  #   absolutePanel(
-  #     bottom = 0, left = 130,
-  #     fixed = TRUE,
-  #     draggable = TRUE,
-  #     column(3,
-  #            checkboxInput("mainXAxisGuide","X-axis guide", value = FALSE, width = NULL)
-  #     ),
-  #     column(3,style='padding:0px;',
-  #            checkboxInput("mainYAxisGuide","Y-axis guide", value = FALSE, width = NULL)
-  #     ),
-  #     style = "opacity: 0.80"
-  #   )
-  # )
-  
-  
+        ),
+        uiOutput("archiPlot.ui"),
+        downloadButton("archiDownload","Download plot")
+),
+
+################### POINT INFO BOX ##########################
+conditionalPanel(
+  condition = "input.tabs=='Main profile' || input.tabs=='Customized profile'",
+  ############# PONIT's INFO BOX
+  absolutePanel(
+    bottom = 5, left = 30,
+    fixed = TRUE,
+    h5("Point's info:"),
+    verbatimTextOutput("pointInfo"),
+    bsButton("go", "Detailed plot", style="success", disabled = FALSE),
+    style = "opacity: 0.80"
   )
 )
 
+############# Axis guide BOX
+# conditionalPanel(
+#   condition = "input.tabs=='Main profile'",
+#   
+#   absolutePanel(
+#     bottom = 0, left = 130,
+#     fixed = TRUE,
+#     draggable = TRUE,
+#     column(3,
+#            checkboxInput("mainXAxisGuide","X-axis guide", value = FALSE, width = NULL)
+#     ),
+#     column(3,style='padding:0px;',
+#            checkboxInput("mainYAxisGuide","Y-axis guide", value = FALSE, width = NULL)
+#     ),
+#     style = "opacity: 0.80"
+#   )
+# )
 
+
+)
+)
