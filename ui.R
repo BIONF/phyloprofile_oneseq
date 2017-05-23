@@ -328,7 +328,7 @@ shinyUI(fluidPage(
             column(1,
                    numericInput("clusterPlot.width",h5("Width (px)"),min=200,max=3200,step=50,value=600,width=100)
             ),
-            column(1,
+            column(2,
                    numericInput("clusterPlot.height",h5("Height (px)"),min=200,max=3200,step=50,value=400,width=100)
             ),
             column(3,
