@@ -154,7 +154,7 @@ substrRight <- function(x, n){
 }
 
 ############################ MAIN ############################
-options(shiny.maxRequestSize=30*1024^2)  ## size limit for input 30mb
+options(shiny.maxRequestSize=500*1024^2)  ## size limit for input 30mb
 
 shinyServer(function(input, output, session) {
   #  session$onSessionEnded(stopApp) ### Automatically stop a Shiny app when closing the browser tab
@@ -1075,7 +1075,7 @@ shinyServer(function(input, output, session) {
     
     fullMdData$fullName <- as.vector(fullMdData$fullName)
     names(fullMdData)[names(fullMdData)=="orthoID.x"] <- "orthoID"
-    fullMdData ### parsed input data frame !!!
+    fullMdData <- fullMdData[!duplicated(fullMdData), ] ### parsed input data frame !!!
   })
   
   #############################################################
@@ -2145,8 +2145,8 @@ shinyServer(function(input, output, session) {
     ### get pair of sequence IDs & var1
     seedID <- toString(selDf$geneID[1])
     orthoID <- toString(allOrthoID[corX])
-    var1 <- toString(selDf$var1[selDf$orthoID==orthoID])
-    
+    #print(allOrthoID)
+    var1 <- selDf$var1[selDf$orthoID==orthoID]
     ### return info
     if(orthoID != "NA"){
       info <- c(seedID,orthoID,var1)
@@ -2317,7 +2317,7 @@ shinyServer(function(input, output, session) {
     content = function(file) {
       g <- archiPlot()
       grid.draw(g)
-      ggsave(file, plot = g, width = input$selectedWidth*0.056458333, height = input$selectedHeight*0.056458333, units="cm", dpi=300, device = "pdf", limitsize=FALSE)
+      ggsave(file, plot = g, width = input$archiWidth*0.056458333, height = input$archiHeight*0.056458333, units="cm", dpi=300, device = "pdf", limitsize=FALSE)
     }
     
     # filename = "domains.pdf",
@@ -2720,13 +2720,13 @@ shinyServer(function(input, output, session) {
     #data <- allTaxaList()
     #data <- sortedTaxaList()
     #data <- preData()
-    #data <- dataFiltered()
+    data <- dataFiltered()
     #data <- dataSupertaxa()
     #data <- dataHeat()
     #data <- detailPlotDt()
     #data <- presSpecAllDt()
     #data <- distDf()
-    data <- downloadData()
+    #data <- downloadData()
     data
   })
   
@@ -2842,4 +2842,4 @@ shinyServer(function(input, output, session) {
     # print(input$plot_dblclick$x)
     # paste(input$var1[1],input$var1[2])
   })
-  })
+})
