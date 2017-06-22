@@ -154,7 +154,7 @@ substrRight <- function(x, n){
 }
 
 ############################ MAIN ############################
-options(shiny.maxRequestSize=500*1024^2)  ## size limit for input 30mb
+options(shiny.maxRequestSize=30*1024^2)  ## size limit for input 30mb
 
 shinyServer(function(input, output, session) {
   #  session$onSessionEnded(stopApp) ### Automatically stop a Shiny app when closing the browser tab
@@ -1075,7 +1075,7 @@ shinyServer(function(input, output, session) {
     
     fullMdData$fullName <- as.vector(fullMdData$fullName)
     names(fullMdData)[names(fullMdData)=="orthoID.x"] <- "orthoID"
-    fullMdData <- fullMdData[!duplicated(fullMdData), ] ### parsed input data frame !!!
+    fullMdData ### parsed input data frame !!!
   })
   
   #############################################################
@@ -1229,9 +1229,17 @@ shinyServer(function(input, output, session) {
       p = ggplot(dataHeat, aes(y = geneID, x = supertaxon))        ## global aes
     }
     
-    p = p + scale_fill_gradient(low = input$lowColor_var2, high = input$highColor_var2, na.value="gray95") +   ## fill color (var2)
-      geom_tile(aes(fill = var2)) +    ## filled rect (var2 score)
-      geom_point(aes(colour = var1, size = presSpec))  +    ## geom_point for circle illusion (var1 and presence/absence)
+    if(length(unique(na.omit(dataHeat$var1))) == 1){
+      mynewcolor_low <- input$highColor_var1
+    } else {
+      mynewcolor_low <- input$lowColor_var1
+    }
+    
+    if(length(unique(na.omit(dataHeat$var2))) != 1){
+      p = p + scale_fill_gradient(low = input$lowColor_var2, high = input$highColor_var2, na.value="gray95") +   ## fill color (var2)
+        geom_tile(aes(fill = var2))    ## filled rect (var2 score)
+    }
+    p = p +  geom_point(aes(colour = var1, size = presSpec))  +    ## geom_point for circle illusion (var1 and presence/absence)
       scale_color_gradient(low = input$lowColor_var1,high = input$highColor_var1)#+       ## color of the corresponding aes (var1)
     scale_size(range = c(0,3))             ## to tune the size of circles
     #+ stat_binhex()
@@ -2145,8 +2153,8 @@ shinyServer(function(input, output, session) {
     ### get pair of sequence IDs & var1
     seedID <- toString(selDf$geneID[1])
     orthoID <- toString(allOrthoID[corX])
-    #print(allOrthoID)
-    var1 <- selDf$var1[selDf$orthoID==orthoID]
+    var1 <- toString(selDf$var1[selDf$orthoID==orthoID])
+    
     ### return info
     if(orthoID != "NA"){
       info <- c(seedID,orthoID,var1)
@@ -2317,7 +2325,7 @@ shinyServer(function(input, output, session) {
     content = function(file) {
       g <- archiPlot()
       grid.draw(g)
-      ggsave(file, plot = g, width = input$archiWidth*0.056458333, height = input$archiHeight*0.056458333, units="cm", dpi=300, device = "pdf", limitsize=FALSE)
+      ggsave(file, plot = g, width = input$selectedWidth*0.056458333, height = input$selectedHeight*0.056458333, units="cm", dpi=300, device = "pdf", limitsize=FALSE)
     }
     
     # filename = "domains.pdf",
@@ -2720,13 +2728,13 @@ shinyServer(function(input, output, session) {
     #data <- allTaxaList()
     #data <- sortedTaxaList()
     #data <- preData()
-    data <- dataFiltered()
+    #data <- dataFiltered()
     #data <- dataSupertaxa()
     #data <- dataHeat()
     #data <- detailPlotDt()
     #data <- presSpecAllDt()
     #data <- distDf()
-    #data <- downloadData()
+    data <- downloadData()
     data
   })
   
@@ -2826,9 +2834,9 @@ shinyServer(function(input, output, session) {
       <p>contact:&nbsp;<a href="mailto:tran@bio.uni-frankfurt.de">tran@bio.uni-frankfurt.de</a></p>
       <p>Please check the latest version at&nbsp;<a href="https://github.com/trvinh/phyloprofile">https://github.com/trvinh/phyloprofile</a></p>
       '
-  )
+      )
   })
-  
+
   ############### USED FOR TESTING
   output$testOutput <- renderText({
     # ### print infile
