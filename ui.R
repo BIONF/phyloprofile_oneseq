@@ -175,8 +175,17 @@ shinyUI(fluidPage(
              ),
              
              hr(),
-             strong(h4("Additional annotation file:")),
-             uiOutput("domainInputFile.ui"),
+             strong(h4("Additional annotation input:")),
+             radioButtons(inputId="annoChoose", label="", choices=list("from file","from folder"), selected="from file", inline=T),
+             conditionalPanel(
+               condition = "input.annoChoose == 'from file'",
+               uiOutput("domainInputFile.ui")
+             ),
+             conditionalPanel(
+               condition = "input.annoChoose == 'from folder'",
+               textInput("domainPath","","")
+             ),
+             
              hr(),
              em(a("Click here to download demo data", href="https://github.com/trvinh/phyloprofile/tree/master/data/demo", target="_blank"))
       ),
@@ -328,7 +337,7 @@ shinyUI(fluidPage(
       "Function",
       tabPanel(
         "Profiles clustering",
-        h4(strong("Cluster profiles")),
+        h4(strong("Profiles clustering")),
         
         wellPanel(
           fluidRow(
@@ -449,6 +458,36 @@ shinyUI(fluidPage(
         tableOutput("geneAge.table")
           ),
       
+      tabPanel(
+        "Consensus gene finding",
+        h4(strong("Consensus gene finding")),
+        
+        wellPanel(
+          fluidRow(
+            column(2,
+                   uiOutput("var1_cons.ui")
+            ),
+            column(2,
+                   uiOutput("var2_cons.ui")
+            ),
+            column(2,
+                   uiOutput("percent_cons.ui")
+            ),
+            column(3,
+                   uiOutput("taxaList_cons.ui"),
+                   bsButton("browseTaxaCons","Browse")
+            )
+          )
+        ),
+        hr(),
+        column(4,
+               downloadButton("consGeneTableDownload","Download gene list"),
+               checkboxInput("addConsGeneCustomProfile",strong(em("Add to Customized profile")), value = FALSE, width = NULL),
+               uiOutput('addConsGeneCustomProfileCheck.ui')
+        ),
+        dataTableOutput("consGene.table")
+      ),
+      
       tabPanel("Search for NCBI taxonomy IDs",
                column(3,
                       fileInput("taxaList",h4("Upload taxa list")),
@@ -467,158 +506,164 @@ shinyUI(fluidPage(
       )
       ),
     
-    ########## DATA TAB ###########
-    navbarMenu("Download filtered data",
-               tabPanel("Main data",
-                        dataTableOutput("filteredMainData"),
-                        downloadButton('downloadData', 'Download filtered data')
-               ),
-               tabPanel("Customized data",
-                        dataTableOutput("filteredCustomData"),
-                        downloadButton('downloadCustomData', 'Download customized data')
-               )
+      ########## DATA TAB ###########
+      navbarMenu("Download filtered data",
+                 tabPanel("Main data",
+                          dataTableOutput("filteredMainData"),
+                          downloadButton('downloadData', 'Download filtered data')
+                 ),
+                 tabPanel("Customized data",
+                          dataTableOutput("filteredCustomData"),
+                          downloadButton('downloadCustomData', 'Download customized data')
+                 )
+      ),
+      
+      ########## OTHERS TAB ###########
+      navbarMenu("More",
+                 tabPanel("Description",
+                          HTML('<iframe width="560" height="315" src="https://www.youtube.com/embed/Udt316KoM6Y" frameborder="0" allowfullscreen></iframe>')
+                 ),
+                 tabPanel("Q&A",
+                          uiOutput("help.ui")
+                 ),
+                 tabPanel(a("About", href="https://trvinh.github.io/phyloprofile/", target="_blank")
+                 )
+      )
     ),
     
-    ########## OTHERS TAB ###########
-    navbarMenu("More",
-               tabPanel("Description",
-                        HTML('<iframe width="560" height="315" src="https://www.youtube.com/embed/Udt316KoM6Y" frameborder="0" allowfullscreen></iframe>')
-               ),
-               tabPanel("Q&A",
-                        uiOutput("help.ui")
-               ),
-               tabPanel(a("About", href="https://trvinh.github.io/phyloprofile/", target="_blank")
-               )
+    ################### LIST OF POP-UP WINDOWS ##########################
+    
+    ####### popup to confirm parsing data from input file
+    bsModal("addTaxaWindows", "Add new taxa", "addTaxa", size = "medium",
+            helpText(em("Use this form to add taxon that does not exist in NCBI taxonomy database")),
+            textInput("newID","ID (must be a number and greater than 1835343, e.g. 2000001)",2000001,width=500),
+            textInput("newName","Name (e.g. Saccharomyces cerevisiae strain ABC)","",width=500),
+            textInput("newRank","Rank (e.g. \"norank\" (for strain), species, order, etc.)","norank",width=500),
+            textInput("newParent","Parent ID (NCBI taxonomy ID of the next higher rank, e.g. 4932 (S.cerevisiae species))",4932,width=500),
+            actionButton("newAdd","Add"),
+            actionButton("newDone","Done")
+    ),
+    
+    ####### popup to confirm parsing data from input file
+    bsModal("parseConfirm", "Get info from input", "parse", size = "medium",
+            HTML("Parsing taxonomy information from input file?"),
+            actionButton("BUTyes", "Yes"),
+            actionButton("BUTno", "No"),
+            helpText(em("***Note: Please run this step whenever you have a new taxa set. For instance, if you have a new matrix file but the taxa remain the same, then DO NOT re-run this step!***"))
+    ),
+    
+    ####### popup windows for setting plot colors
+    bsModal("color", "Set colors for profile", "setColor", size = "small",
+            colourpicker::colourInput("lowColor_var1", paste("Low variable 1"), value = "darkorange"),
+            colourpicker::colourInput("highColor_var1", "High variable 1", value = "steelblue"),
+            actionButton("defaultColorVar1","Default",style='padding:4px; font-size:100%'),
+            hr(),
+            colourpicker::colourInput("lowColor_var2", "Low variable 2", value = "grey95"),
+            colourpicker::colourInput("highColor_var2", "High variable 2", value = "khaki"),
+            actionButton("defaultColorTrace","Default",style='padding:4px; font-size:100%')
+    ),
+    
+    ####### popup windows for FASTA configurations
+    bsModal("config", "FASTA config", "getConfig", size = "small",
+            selectInput("input_type", "Choose location for:",
+                        c("oneSeq.extended.fa", "Fasta folder")
+            ),
+            hr(),
+            conditionalPanel(
+              condition = "input.input_type == 'oneSeq.extended.fa'",
+              #            textInput("oneseq.file","Path:",""),
+              fileInput("oneSeqFasta",""),
+              uiOutput("oneSeq.existCheck")
+              
+            ),
+            conditionalPanel(
+              condition = "input.input_type == 'Fasta folder'",
+              textInput("path","Main path:","")
+              ,selectInput("dir_format","Directory format:",choices=list("path/speciesID.fa*"=1,"path/speciesID/speciesID.fa*"=2),selected="Path/speciesID.fasta")
+              ,selectInput("file_ext","File extension:",choices=list("fa"="fa","fasta"="fasta","fas"="fas","txt"="txt"),selected="fa")
+              ,selectInput("id_format","ID format:",choices=list(">speciesID:seqID"=1,">seqID"=2),selected=2)
+            )
+    ),
+    
+    ####### popup windows for select taxa on Customized Profile
+    bsModal("cusTaxaBS", "Select taxon/taxa of interest", "cusTaxa", size = "small",
+            uiOutput("rankSelectCus"),
+            uiOutput("taxaSelectCus"),
+            checkboxInput("applyCusTaxa",strong("Apply to customized profile", style="color:red"),value = FALSE)
+    ),
+    
+    ####### popup windows for select taxa on Consensus gene finding
+    bsModal("browseTaxaConsBS", "Select taxon/taxa of interest", "browseTaxaCons", size = "small",
+            uiOutput("rankSelectCons"),
+            uiOutput("taxaSelectCons"),
+            checkboxInput("applyConsTaxa",strong("Apply", style="color:red"),value = FALSE)
+    ),
+    
+    ####### popup windows for detailed plot
+    bsModal("modalBS", "Detailed plot", "go", size = "large",
+            uiOutput("detailPlot.ui"),
+            numericInput("detailedHeight","plot_height(px)",min=100,max=1600,step=50,value=100,width=100)
+            ,verbatimTextOutput("detailClick")
+            ,bsButton("doDomainPlot", "Show domain architecture",disabled = TRUE)
+            ,uiOutput("checkDomainFiles")
+            ,br()
+            ,h4("Sequence:")
+            ,verbatimTextOutput("fasta")
+    ),
+    
+    ####### popup windows for domain architecture plot
+    bsModal("plotArchi","Domain architecture","doDomainPlot", size = "large",
+            fluidRow(
+              column(2,
+                     numericInput("archiHeight","plot_height(px)",min=100,max=1600,step=50,value=400,width=100)
+              ),
+              column(2,
+                     numericInput("archiWidth","plot_width(px)",min=100,max=1600,step=50,value=800,width=100)
+              ),
+              column(2,
+                     numericInput("titleArchiSize","Title size(px)",min=8,max=99,step=1,value=11,width=150)
+              ),
+              column(2,
+                     numericInput("labelArchiSize","SeqID size(px)",min=8,max=99,step=1,value=11,width=150)
+              ),
+              column(2,
+                     numericInput("labelDescSize","Text size(px)",min=0,max=99,step=1,value=3,width=150)
+              )
+            ),
+            uiOutput("archiPlot.ui"),
+            downloadButton("archiDownload","Download plot")
+    ),
+    
+    ################### POINT INFO BOX ##########################
+    conditionalPanel(
+      condition = "input.tabs=='Main profile' || input.tabs=='Customized profile'",
+      ############# PONIT's INFO BOX
+      absolutePanel(
+        bottom = 5, left = 30,
+        fixed = TRUE,
+        h5("Point's info:"),
+        verbatimTextOutput("pointInfo"),
+        bsButton("go", "Detailed plot", style="success", disabled = FALSE),
+        style = "opacity: 0.80"
+      )
     )
-),
-
-################### LIST OF POP-UP WINDOWS ##########################
-
-####### popup to confirm parsing data from input file
-bsModal("addTaxaWindows", "Add new taxa", "addTaxa", size = "medium",
-        helpText(em("Use this form to add taxon that does not exist in NCBI taxonomy database")),
-        textInput("newID","ID (must be a number and greater than 1835343, e.g. 2000001)",2000001,width=500),
-        textInput("newName","Name (e.g. Saccharomyces cerevisiae strain ABC)","",width=500),
-        textInput("newRank","Rank (e.g. \"norank\" (for strain), species, order, etc.)","norank",width=500),
-        textInput("newParent","Parent ID (NCBI taxonomy ID of the next higher rank, e.g. 4932 (S.cerevisiae species))",4932,width=500),
-        actionButton("newAdd","Add"),
-        actionButton("newDone","Done")
-),
-
-####### popup to confirm parsing data from input file
-bsModal("parseConfirm", "Get info from input", "parse", size = "medium",
-        HTML("Parsing taxonomy information from input file?"),
-        actionButton("BUTyes", "Yes"),
-        actionButton("BUTno", "No"),
-        helpText(em("***Note: Please run this step whenever you have a new taxa set. For instance, if you have a new matrix file but the taxa remain the same, then DO NOT re-run this step!***"))
-),
-
-####### popup windows for setting plot colors
-bsModal("color", "Set colors for profile", "setColor", size = "small",
-        colourpicker::colourInput("lowColor_var1", paste("Low variable 1"), value = "darkorange"),
-        colourpicker::colourInput("highColor_var1", "High variable 1", value = "steelblue"),
-        actionButton("defaultColorVar1","Default",style='padding:4px; font-size:100%'),
-        hr(),
-        colourpicker::colourInput("lowColor_var2", "Low variable 2", value = "grey95"),
-        colourpicker::colourInput("highColor_var2", "High variable 2", value = "khaki"),
-        actionButton("defaultColorTrace","Default",style='padding:4px; font-size:100%')
-),
-
-####### popup windows for FASTA configurations
-bsModal("config", "FASTA config", "getConfig", size = "small",
-        selectInput("input_type", "Choose location for:",
-                    c("oneSeq.extended.fa", "Fasta folder")
-        ),
-        hr(),
-        conditionalPanel(
-          condition = "input.input_type == 'oneSeq.extended.fa'",
-          #            textInput("oneseq.file","Path:",""),
-          fileInput("oneSeqFasta",""),
-          uiOutput("oneSeq.existCheck")
-          
-        ),
-        conditionalPanel(
-          condition = "input.input_type == 'Fasta folder'",
-          textInput("path","Main path:","")
-          ,selectInput("dir_format","Directory format:",choices=list("path/speciesID.fa*"=1,"path/speciesID/speciesID.fa*"=2),selected="Path/speciesID.fasta")
-          ,selectInput("file_ext","File extension:",choices=list("fa"="fa","fasta"="fasta","fas"="fas","txt"="txt"),selected="fa")
-          ,selectInput("id_format","ID format:",choices=list(">speciesID:seqID"=1,">seqID"=2),selected=2)
-        )
-),
-
-####### popup windows for select customized taxa
-bsModal("cusTaxaBS", "Select taxon/taxa of interest", "cusTaxa", size = "small",
-        uiOutput("rankSelectCus"),
-        uiOutput("taxaSelectCus"),
-        checkboxInput("applyCusTaxa",strong("Apply to customized profile", style="color:red"),value = FALSE)
-),
-
-####### popup windows for detailed plot
-bsModal("modalBS", "Detailed plot", "go", size = "large",
-        uiOutput("detailPlot.ui"),
-        numericInput("detailedHeight","plot_height(px)",min=100,max=1600,step=50,value=100,width=100)
-        ,verbatimTextOutput("detailClick")
-        ,actionButton("do3", "Show domain architecture")
-        ,br()
-        ,h4("Sequence:")
-        ,verbatimTextOutput("fasta")
-),
-
-####### popup windows for domain architecture plot
-bsModal("plotArchi","Domain architecture","do3", size = "large",
-        fluidRow(
-          column(2,
-                 numericInput("archiHeight","plot_height(px)",min=100,max=1600,step=50,value=400,width=100)
-          ),
-          column(2,
-                 numericInput("archiWidth","plot_width(px)",min=100,max=1600,step=50,value=800,width=100)
-          ),
-          column(2,
-                 numericInput("titleArchiSize","Title size(px)",min=8,max=99,step=1,value=11,width=150)
-          ),
-          column(2,
-                 numericInput("labelArchiSize","SeqID size(px)",min=8,max=99,step=1,value=11,width=150)
-          ),
-          column(2,
-                 numericInput("labelDescSize","Text size(px)",min=0,max=99,step=1,value=3,width=150)
-          )
-        ),
-        uiOutput("archiPlot.ui"),
-        downloadButton("archiDownload","Download plot")
-),
-
-################### POINT INFO BOX ##########################
-conditionalPanel(
-  condition = "input.tabs=='Main profile' || input.tabs=='Customized profile'",
-  ############# PONIT's INFO BOX
-  absolutePanel(
-    bottom = 5, left = 30,
-    fixed = TRUE,
-    h5("Point's info:"),
-    verbatimTextOutput("pointInfo"),
-    bsButton("go", "Detailed plot", style="success", disabled = FALSE),
-    style = "opacity: 0.80"
+    
+    ############# Axis guide BOX
+    # conditionalPanel(
+    #   condition = "input.tabs=='Main profile'",
+    #   
+    #   absolutePanel(
+    #     bottom = 0, left = 130,
+    #     fixed = TRUE,
+    #     draggable = TRUE,
+    #     column(3,
+    #            checkboxInput("mainXAxisGuide","X-axis guide", value = FALSE, width = NULL)
+    #     ),
+    #     column(3,style='padding:0px;',
+    #            checkboxInput("mainYAxisGuide","Y-axis guide", value = FALSE, width = NULL)
+    #     ),
+    #     style = "opacity: 0.80"
+    #   )
+    # )
   )
-)
-
-############# Axis guide BOX
-# conditionalPanel(
-#   condition = "input.tabs=='Main profile'",
-#   
-#   absolutePanel(
-#     bottom = 0, left = 130,
-#     fixed = TRUE,
-#     draggable = TRUE,
-#     column(3,
-#            checkboxInput("mainXAxisGuide","X-axis guide", value = FALSE, width = NULL)
-#     ),
-#     column(3,style='padding:0px;',
-#            checkboxInput("mainYAxisGuide","Y-axis guide", value = FALSE, width = NULL)
-#     ),
-#     style = "opacity: 0.80"
-#   )
-# )
-
-
-)
 )
