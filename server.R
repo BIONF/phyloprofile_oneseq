@@ -214,11 +214,15 @@ shinyServer(function(input, output, session) {
           id <- get_uid(sciname = taxaNameDf[i,])[1]
           if(is.na(id)){
             temp <- gnr_resolve(names = as.character(taxaNameDf[i,]))
-            newID <- get_uid(sciname = temp[1,3])[1]
-            if(is.na(newID)){
-              idDf[i,] <- c(as.character(taxaNameDf[i,]),as.character(temp[1,3]),paste0("NA"),"notfound")
+            if(nrow(temp) > 0){
+              newID <- get_uid(sciname = temp[1,3])[1]
+              if(is.na(newID)){
+                idDf[i,] <- c(as.character(taxaNameDf[i,]),as.character(temp[1,3]),paste0("NA"),"notfound")
+              } else {
+                idDf[i,] <- c(as.character(taxaNameDf[i,]),as.character(temp[1,3]),paste0("ncbi",newID),"notfound")
+              }
             } else {
-              idDf[i,] <- c(as.character(taxaNameDf[i,]),as.character(temp[1,3]),paste0("ncbi",newID),"notfound")
+              idDf[i,] <- c(as.character(taxaNameDf[i,]),paste0("no alternative"),paste0("NA"),"notfound")
             }
           } else {
             idDf[i,] <- c(as.character(taxaNameDf[i,]),"NA",paste0("ncbi",id),"retrieved") 
@@ -227,7 +231,7 @@ shinyServer(function(input, output, session) {
           incProgress(1/nrow(taxaNameDf), detail = paste(i,"/",nrow(taxaNameDf)))
         }        
       })
-      
+      print(idDf)
       ### return
       idDf
     }
@@ -238,9 +242,10 @@ shinyServer(function(input, output, session) {
     if(input$idSearch > 0){
       if(length(taxaID())>0){
         tb <- as.data.frame(taxaID())
+        print(head(tb))
         tbFiltered <- tb[tb$type == "notfound",]
         notFoundDt <- tbFiltered[,c("name","newName","id")]
-        colnames(notFoundDt) <- c("Summitted name","Matched name","Matched ID")
+        colnames(notFoundDt) <- c("Summitted name","Alternative name","Alternative ID")
         notFoundDt
       }
     }
@@ -252,7 +257,7 @@ shinyServer(function(input, output, session) {
       tb <- as.data.frame(taxaID())
       tbFiltered <- tb[tb$type == "notfound",]
       notFoundDt <- tbFiltered[,c("name","newName","id")]
-      colnames(notFoundDt) <- c("Summitted name","Matched name","Matched ID")
+      colnames(notFoundDt) <- c("Summitted name","Alternative name","Alternative ID")
       
       write.table(notFoundDt,file,sep="\t",row.names = FALSE,quote = FALSE)
     }
@@ -382,7 +387,7 @@ shinyServer(function(input, output, session) {
                 "% of present taxa:", min = 0, max = 1, step = 0.025, value = input$percent, width = 200)
   })
   
-  ######## render filter slidebars for Consensus gene finding function
+  ######## render filter slidebars for Core gene finding function
   output$var1_cons.ui <- renderUI({
     sliderInput("var1_cons",paste(input$var1_id,"cutoff:"), min = 0, max = 1, step = 0.025, value = c(input$var1[1],input$var1[2]), width = 200)
   })
@@ -2928,12 +2933,12 @@ shinyServer(function(input, output, session) {
   
   output$addCustomProfileCheck.ui <- renderUI({
     if(input$addClusterCustomProfile == TRUE  | input$addConsGeneCustomProfile == TRUE){
-      HTML('<p><em>(Uncheck "Add to Customized profile" check box in <strong>Profile clustering</strong> or <strong>Consensus genes finding</strong>&nbsp;to enable this function)</em></p>')
+      HTML('<p><em>(Uncheck "Add to Customized profile" check box in <strong>Profile clustering</strong> or <strong>Core genes finding</strong>&nbsp;to enable this function)</em></p>')
     }
   })
   
   #############################################################
-  ##################### CONSENSUS GENES #######################
+  ##################### CORE GENES ############################
   #############################################################
   
   ### render list of available taxa
@@ -3202,7 +3207,7 @@ shinyServer(function(input, output, session) {
   
   output$addClusterCustomProfileCheck.ui <- renderUI({
     if(input$addCustomProfile == TRUE | input$addConsGeneCustomProfile == TRUE){
-      HTML('<p><em>(Uncheck "Add to Customized profile" check box in <strong>Gene age estimation</strong> or <strong>Consensus genes finding</strong>&nbsp;to enable this function)</em></p>')
+      HTML('<p><em>(Uncheck "Add to Customized profile" check box in <strong>Gene age estimation</strong> or <strong>Core genes finding</strong>&nbsp;to enable this function)</em></p>')
     }
   })
   
