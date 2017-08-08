@@ -46,38 +46,31 @@ shinyUI(fluidPage(
                  inline=T
                ),
                hr(),
-               checkboxInput("autoUpdate",strong(em("Auto update plot")), value = TRUE, width = NULL),
-               bsButton("resetMain","Reset",style="danger")
-               # ,
-               # checkboxInput("mainXAxisGuide","X-axis guide", value = FALSE, width = NULL),
-               # checkboxInput("mainYAxisGuide","Y-axis guide", value = FALSE, width = NULL)
+               checkboxInput("autoUpdate",strong(em("Auto update plot")), value = TRUE, width = NULL)
         ),
         column(1,
                numericInput("width","Width (px)",min=600,max=3200,step=50,value=600,width=100),
+               actionButton("mainPlotConfig","Other properties config")
+        ),
+        column(1,
                numericInput("height","Height (px)",min=600,max=1600,step=50,value=600,width=100)
         ),
         column(2,
-               numericInput("xSize","X-axis label size(px)",min=8,max=99,step=1,value=8,width=150),
-               numericInput("ySize","Y-axis label size(px)",min=8,max=99,step=1,value=8,width=150)
-        ),
-        column(2,
-               numericInput("legendSize","Legend label size(px)",min=8,max=99,step=1,value=8,width=150),
-               selectInput("mainLegend", label = "Legend position:",
-                           choices = list("Right"="right", "Left"="left","Top"="top","Bottom"="bottom", "Hide"="none"), 
-                           selected = "right",
-                           width = 150)
-        ),
-        column(2,
-               uiOutput("var1_cutoff"),
-               uiOutput("var2_cutoff")
+               uiOutput("var1_cutoff")
+        ),column(2,
+                 uiOutput("var2_cutoff")
         ),
         column(2,
                sliderInput("percent",
-                           "% of present taxa:", min = 0, max = 1, step = 0.025, value = c(0.0,1.0), width = 200),
+                           "% of present taxa:", min = 0, max = 1, step = 0.025, value = c(0.0,1.0), width = 200)
+        ),
+        column(2,
+               bsButton("resetMain","Reset cutoffs",style="danger"),
+               hr(),
+               downloadButton('plotDownload','Download profile'),
                tags$head(
                  tags$style(HTML('#plotDownload{background-color:#A9E2F3}'))
-               ),
-               downloadButton('plotDownload','Download heatmap')
+               )
         )
       )
     )
@@ -96,35 +89,31 @@ shinyUI(fluidPage(
                  inline=T
                ),
                hr(),
-               checkboxInput("autoUpdateSelected",strong(em("Auto update plot")), value = TRUE, width = NULL),
-               bsButton("resetSelected","Reset",style="danger")
+               checkboxInput("autoUpdateSelected",strong(em("Auto update plot")), value = TRUE, width = NULL)
         ),
         column(1,
                numericInput("selectedWidth","Width (px)",min=100,max=1000,step=50,value=600,width=100),
+               actionButton("selectedPlotConfig","Other properties config")
+        ),
+        column(1,
                numericInput("selectedHeight","Height (px)",min=100,max=1600,step=50,value=600,width=100)
         ),
         column(2,
-               numericInput("xSizeSelect","X-axis label size(px)",min=8,max=99,step=1,value=8,width=150),
-               numericInput("ySizeSelect","Y-axis label size(px)",min=8,max=99,step=1,value=8,width=150)     
+               uiOutput("var1Filter.ui")
         ),
         column(2,
-               numericInput("legendSizeSelect","Legend label size(px)",min=8,max=99,step=1,value=8,width=150),
-               selectInput(
-                 "selectedLegend", label = "Legend position:",
-                 choices = list("Right"="right", "Left"="left","Top"="top","Bottom"="bottom", "Hide"="none"), 
-                 selected = "right",
-                 width = 150)
-        ),
-        column(2,
-               uiOutput("var1Filter.ui"),
                uiOutput("var2Filter.ui")
         ),
         column(2,
-               uiOutput("percentFilter.ui"),
+               uiOutput("percentFilter.ui")
+        ),
+        column(2,
+               bsButton("resetSelected","Reset cutoffs",style="danger"),
+               hr(),
+               downloadButton('selectedDownload', 'Download profile'),
                tags$head(
                  tags$style(HTML('#selectedDownload{background-color:#A9E2F3}'))
-               ),
-               downloadButton('selectedDownload', 'Download heatmap')
+               )
         )
       )
     )
@@ -213,17 +202,14 @@ shinyUI(fluidPage(
              conditionalPanel(
                condition = 'output.unkTaxaStatus',
                strong(h4("PLEASE CHECK:")),
-               em("Does the taxa in your recently uploaded presence/absence file change? (Note: for 'first time users', please choose 'YES')"),
-               radioButtons("parseAsk","", c("Yes" = "Yes", "No" = "No"), inline=T, selected = "Yes"),
-               conditionalPanel(condition="input.parseAsk == 'Yes'",
-                                bsButton("parse","Get info from input",disabled=FALSE)
-               ),
-               h5(""),
                
                em("Do you have any taxon, which doesn't exist in the NCBI taxonomy database?"),
                radioButtons("newTaxaAsk","", c("Yes" = "Yes", "No" = "No"), inline=T, selected = "No"),
                conditionalPanel(condition="input.newTaxaAsk == 'Yes'",
-                                bsButton("addTaxa","Add new taxa",disabled=FALSE)
+                                bsButton("addTaxa","Add info for new taxa",disabled=FALSE,style="warning")
+               ),
+               conditionalPanel(condition="input.newTaxaAsk == 'No'",
+                                bsButton("parse","Get taxonomy info from input",disabled=FALSE,style="warning")
                ),
                hr(),
                
@@ -234,8 +220,10 @@ shinyUI(fluidPage(
                condition = 'output.unkTaxaStatus == 0',
                strong(h4("Seed (super)taxon:")),
                br(),
+               
                strong(h5("Select taxonomy rank:")),
                uiOutput("rankSelect"),
+               uiOutput("msgDemo"),
                br(),
                strong(h5("Choose (super)taxon of interest:")),
                uiOutput("select"),
@@ -497,7 +485,7 @@ shinyUI(fluidPage(
                       downloadButton("downloadTaxaID","Download")
                )
       )
-      ),
+    ),
     
     ########## DATA TAB ###########
     navbarMenu("Download filtered data",
@@ -524,141 +512,213 @@ shinyUI(fluidPage(
                tabPanel(a("About", href="https://trvinh.github.io/phyloprofile/", target="_blank")
                )
     )
-),
+  ),
 
-################### LIST OF POP-UP WINDOWS ##########################
-
-####### popup to confirm parsing data from input file
-bsModal("addTaxaWindows", "Add new taxa", "addTaxa", size = "medium",
-        helpText(em("Use this form to add taxon that does not exist in NCBI taxonomy database")),
-        textInput("newID","ID (must be a number and greater than 1835343, e.g. 2000001)",2000001,width=500),
-        textInput("newName","Name (e.g. Saccharomyces cerevisiae strain ABC)","",width=500),
-        textInput("newRank","Rank (e.g. \"norank\" (for strain), species, order, etc.)","norank",width=500),
-        textInput("newParent","Parent ID (NCBI taxonomy ID of the next higher rank, e.g. 4932 (S.cerevisiae species))",4932,width=500),
-        actionButton("newAdd","Add"),
-        actionButton("newDone","Done")
-),
-
-####### popup to confirm parsing data from input file
-bsModal("parseConfirm", "Get info from input", "parse", size = "medium",
-        HTML("Parsing taxonomy information from input file?"),
-        actionButton("BUTyes", "Yes"),
-        actionButton("BUTno", "No"),
-        helpText(em("***Note: Please run this step whenever you have a new taxa set. For instance, if you have a new matrix file but the taxa remain the same, then DO NOT re-run this step!***"))
-),
-
-####### popup windows for setting plot colors
-bsModal("color", "Set colors for profile", "setColor", size = "small",
-        colourpicker::colourInput("lowColor_var1", paste("Low variable 1"), value = "darkorange"),
-        colourpicker::colourInput("highColor_var1", "High variable 1", value = "steelblue"),
-        actionButton("defaultColorVar1","Default",style='padding:4px; font-size:100%'),
-        hr(),
-        colourpicker::colourInput("lowColor_var2", "Low variable 2", value = "grey95"),
-        colourpicker::colourInput("highColor_var2", "High variable 2", value = "khaki"),
-        actionButton("defaultColorTrace","Default",style='padding:4px; font-size:100%')
-),
-
-####### popup windows for FASTA configurations
-bsModal("config", "FASTA config", "getConfig", size = "small",
-        selectInput("input_type", "Choose location for:",
-                    c("oneSeq.extended.fa", "Fasta folder")
-        ),
-        hr(),
-        conditionalPanel(
-          condition = "input.input_type == 'oneSeq.extended.fa'",
-          #            textInput("oneseq.file","Path:",""),
-          fileInput("oneSeqFasta",""),
-          uiOutput("oneSeq.existCheck")
-          
-        ),
-        conditionalPanel(
-          condition = "input.input_type == 'Fasta folder'",
-          textInput("path","Main path:","")
-          ,selectInput("dir_format","Directory format:",choices=list("path/speciesID.fa*"=1,"path/speciesID/speciesID.fa*"=2),selected="Path/speciesID.fasta")
-          ,selectInput("file_ext","File extension:",choices=list("fa"="fa","fasta"="fasta","fas"="fas","txt"="txt"),selected="fa")
-          ,selectInput("id_format","ID format:",choices=list(">speciesID:seqID"=1,">seqID"=2),selected=2)
-        )
-),
-
-####### popup windows for select taxa on Customized Profile
-bsModal("cusTaxaBS", "Select taxon/taxa of interest", "cusTaxa", size = "small",
-        uiOutput("rankSelectCus"),
-        uiOutput("taxaSelectCus"),
-        checkboxInput("applyCusTaxa",strong("Apply to customized profile", style="color:red"),value = FALSE)
-),
-
-####### popup windows for select taxa on Consensus gene finding
-bsModal("browseTaxaConsBS", "Select taxon/taxa of interest", "browseTaxaCons", size = "small",
-        uiOutput("rankSelectCons"),
-        uiOutput("taxaSelectCons"),
-        checkboxInput("applyConsTaxa",strong("Apply", style="color:red"),value = FALSE)
-),
-
-####### popup windows for detailed plot
-bsModal("modalBS", "Detailed plot", "go", size = "large",
-        uiOutput("detailPlot.ui"),
-        numericInput("detailedHeight","plot_height(px)",min=100,max=1600,step=50,value=100,width=100)
-        ,verbatimTextOutput("detailClick")
-        ,bsButton("doDomainPlot", "Show domain architecture",disabled = TRUE)
-        ,uiOutput("checkDomainFiles")
-        ,br()
-        ,h4("Sequence:")
-        ,verbatimTextOutput("fasta")
-),
-
-####### popup windows for domain architecture plot
-bsModal("plotArchi","Domain architecture","doDomainPlot", size = "large",
-        fluidRow(
-          column(2,
-                 numericInput("archiHeight","plot_height(px)",min=100,max=1600,step=50,value=400,width=100)
+  ################### LIST OF POP-UP WINDOWS ##########################
+  
+  ####### popup to confirm parsing data from input file
+  bsModal("addTaxaWindows", "Add new taxa", "addTaxa", size = "medium",
+          helpText(em("Use this form to add taxon that does not exist in NCBI taxonomy database")),
+          textInput("newID","ID (must be a number and greater than 1835343, e.g. 2000001)",2000001,width=500),
+          textInput("newName","Name (e.g. Saccharomyces cerevisiae strain ABC)","",width=500),
+          textInput("newRank","Rank (e.g. \"norank\" (for strain), species, order, etc.)","norank",width=500),
+          textInput("newParent","Parent ID (NCBI taxonomy ID of the next higher rank, e.g. 4932 (S.cerevisiae species))",4932,width=500),
+          actionButton("newAdd","Add"),
+          actionButton("newDone","Done")
+  ),
+  
+  ####### popup to confirm parsing data from input file
+  bsModal("parseConfirm", "Get info from input", "parse", size = "medium",
+          HTML("Parsing taxonomy information from input file<br>and"),
+          actionButton("BUTparseAppend","append to existing taxonomy file"),
+          HTML(", or"),
+          actionButton("BUTparseNew", "create new taxonomy file"),
+          HTML(".<br><br>"),
+          strong("PLEASE RELOAD THIS TOOL WHEN FINISHED!!!",style = "color:red"),
+          # actionButton("BUTno", "Cancel"),
+          helpText(em("***Taxonomy file is a file used to store all taxonomy ranks and their correspoding IDs for a given taxa list***"))
+  ),
+  
+  ####### popup windows for setting plot colors
+  bsModal("color", "Set colors for profile", "setColor", size = "small",
+          colourpicker::colourInput("lowColor_var1", paste("Low variable 1"), value = "darkorange"),
+          colourpicker::colourInput("highColor_var1", "High variable 1", value = "steelblue"),
+          actionButton("defaultColorVar1","Default",style='padding:4px; font-size:100%'),
+          hr(),
+          colourpicker::colourInput("lowColor_var2", "Low variable 2", value = "grey95"),
+          colourpicker::colourInput("highColor_var2", "High variable 2", value = "khaki"),
+          actionButton("defaultColorTrace","Default",style='padding:4px; font-size:100%')
+  ),
+  
+  ####### popup windows for FASTA configurations
+  bsModal("config", "FASTA config", "getConfig", size = "small",
+          selectInput("input_type", "Choose location for:",
+                      c("oneSeq.extended.fa", "Fasta folder")
           ),
-          column(2,
-                 numericInput("archiWidth","plot_width(px)",min=100,max=1600,step=50,value=800,width=100)
+          hr(),
+          conditionalPanel(
+            condition = "input.input_type == 'oneSeq.extended.fa'",
+            #            textInput("oneseq.file","Path:",""),
+            fileInput("oneSeqFasta",""),
+            uiOutput("oneSeq.existCheck")
+            
           ),
-          column(2,
-                 numericInput("titleArchiSize","Title size(px)",min=8,max=99,step=1,value=11,width=150)
-          ),
-          column(2,
-                 numericInput("labelArchiSize","SeqID size(px)",min=8,max=99,step=1,value=11,width=150)
-          ),
-          column(2,
-                 numericInput("labelDescSize","Text size(px)",min=0,max=99,step=1,value=3,width=150)
+          conditionalPanel(
+            condition = "input.input_type == 'Fasta folder'",
+            textInput("path","Main path:","")
+            ,selectInput("dir_format","Directory format:",choices=list("path/speciesID.fa*"=1,"path/speciesID/speciesID.fa*"=2),selected="Path/speciesID.fasta")
+            ,selectInput("file_ext","File extension:",choices=list("fa"="fa","fasta"="fasta","fas"="fas","txt"="txt"),selected="fa")
+            ,selectInput("id_format","ID format:",choices=list(">speciesID:seqID"=1,">seqID"=2),selected=2)
           )
-        ),
-        uiOutput("archiPlot.ui"),
-        downloadButton("archiDownload","Download plot")
-),
-
-################### POINT INFO BOX ##########################
-conditionalPanel(
-  condition = "input.tabs=='Main profile' || input.tabs=='Customized profile'",
-  ############# PONIT's INFO BOX
-  absolutePanel(
-    bottom = 5, left = 30,
-    fixed = TRUE,
-    h5("Point's info:"),
-    verbatimTextOutput("pointInfo"),
-    bsButton("go", "Detailed plot", style="success", disabled = FALSE),
-    style = "opacity: 0.80"
+  ),
+  
+  ####### popup windows for setting main plot configurations
+  bsModal("mainPlotConfigBs", "Plot properties configuration", "mainPlotConfig", size = "small",
+          column(6,
+                 numericInput("xSize","X-axis label size (px)",min=8,max=99,step=1,value=8,width=100)
+          ),
+          column(6,
+                 
+                 numericInput("ySize","Y-axis label size (px)",min=8,max=99,step=1,value=8,width=100)
+          ),
+          
+          column(6,
+                 numericInput("legendSize","Legend label size (px)",min=8,max=99,step=1,value=8,width=150)
+          ),
+          column(6,
+                 selectInput("mainLegend", label = "Legend position:",
+                             choices = list("Right"="right", "Left"="left","Top"="top","Bottom"="bottom", "Hide"="none"), 
+                             selected = "right",
+                             width = 150)
+          ),
+          
+          column(12,
+                 HTML("<strong>Zooming factor (α) for dots on profile</strong>:<br>"),
+                 sliderInput("dotZoom","", min = -1, max = 3, step = 0.1, value = 0, width = 250),
+                 HTML("<em>size = (1+α)*default_size<br>default_size=[0:5]</em>"),
+                 uiOutput("dotSizeInfo"),
+                 br()
+          ),
+          
+          br(),
+          hr(),
+          bsButton("resetMainConfig","Reset",style="danger"),
+          bsButton("applyMainConfig","Done",style="warning")
+  ),
+  
+  ####### popup windows for setting main plot configurations
+  bsModal("selectedPlotConfigBs", "Plot properties configuration", "selectedPlotConfig", size = "small",
+          column(6,
+                 numericInput("xSizeSelect","X-axis label size(px)",min=8,max=99,step=1,value=8,width=150)
+          ),
+          column(6,
+                 
+                 numericInput("ySizeSelect","Y-axis label size (px)",min=8,max=99,step=1,value=8,width=100)
+          ),
+          
+          column(6,
+                 numericInput("legendSizeSelect","Legend label size (px)",min=8,max=99,step=1,value=8,width=150)
+          ),
+          column(6,
+                 selectInput("selectedLegend", label = "Legend position:",
+                             choices = list("Right"="right", "Left"="left","Top"="top","Bottom"="bottom", "Hide"="none"), 
+                             selected = "right",
+                             width = 150)
+          ),
+          
+          column(12,
+                 HTML("<strong>Zooming factor (α) for dots on profile</strong>:<br>"),
+                 sliderInput("dotZoomSelect","", min = -1, max = 3, step = 0.1, value = 0, width = 250),
+                 HTML("<em>size = (1+α)*default_size<br>default_size=[0:5]</em>"),
+                 uiOutput("dotSizeInfoSelect"),
+                 br()
+          ),
+          
+          br(),
+          hr(),
+          bsButton("resetSelectedConfig","Reset",style="danger"),
+          bsButton("applySelectedConfig","Done",style="warning")
+  ),
+  
+  ####### popup windows for select taxa on Customized Profile
+  bsModal("cusTaxaBS", "Select taxon/taxa of interest", "cusTaxa", size = "small",
+          uiOutput("rankSelectCus"),
+          uiOutput("taxaSelectCus"),
+          checkboxInput("applyCusTaxa",strong("Apply to customized profile", style="color:red"),value = FALSE)
+  ),
+  
+  ####### popup windows for select taxa on Consensus gene finding
+  bsModal("browseTaxaConsBS", "Select taxon/taxa of interest", "browseTaxaCons", size = "small",
+          uiOutput("rankSelectCons"),
+          uiOutput("taxaSelectCons"),
+          checkboxInput("applyConsTaxa",strong("Apply", style="color:red"),value = FALSE)
+  ),
+  
+  ####### popup windows for detailed plot
+  bsModal("modalBS", "Detailed plot", "go", size = "large",
+          uiOutput("detailPlot.ui"),
+          numericInput("detailedHeight","plot_height(px)",min=100,max=1600,step=50,value=100,width=100)
+          ,verbatimTextOutput("detailClick")
+          ,bsButton("doDomainPlot", "Show domain architecture",disabled = TRUE)
+          ,uiOutput("checkDomainFiles")
+          ,br()
+          ,h4("Sequence:")
+          ,verbatimTextOutput("fasta")
+  ),
+  
+  ####### popup windows for domain architecture plot
+  bsModal("plotArchi","Domain architecture","doDomainPlot", size = "large",
+          fluidRow(
+            column(2,
+                   numericInput("archiHeight","plot_height(px)",min=100,max=1600,step=50,value=400,width=100)
+            ),
+            column(2,
+                   numericInput("archiWidth","plot_width(px)",min=100,max=1600,step=50,value=800,width=100)
+            ),
+            column(2,
+                   numericInput("titleArchiSize","Title size(px)",min=8,max=99,step=1,value=11,width=150)
+            ),
+            column(2,
+                   numericInput("labelArchiSize","SeqID size(px)",min=8,max=99,step=1,value=11,width=150)
+            ),
+            column(2,
+                   numericInput("labelDescSize","Text size(px)",min=0,max=99,step=1,value=3,width=150)
+            )
+          ),
+          uiOutput("archiPlot.ui"),
+          downloadButton("archiDownload","Download plot")
+  ),
+  
+  ################### POINT INFO BOX ##########################
+  conditionalPanel(
+    condition = "input.tabs=='Main profile' || input.tabs=='Customized profile'",
+    ############# PONIT's INFO BOX
+    absolutePanel(
+      bottom = 5, left = 30,
+      fixed = TRUE,
+      h5("Point's info:"),
+      verbatimTextOutput("pointInfo"),
+      bsButton("go", "Detailed plot", style="success", disabled = FALSE),
+      style = "opacity: 0.80"
+    )
   )
-)
-
-############# Axis guide BOX
-# conditionalPanel(
-#   condition = "input.tabs=='Main profile'",
-#   
-#   absolutePanel(
-#     bottom = 0, left = 130,
-#     fixed = TRUE,
-#     draggable = TRUE,
-#     column(3,
-#            checkboxInput("mainXAxisGuide","X-axis guide", value = FALSE, width = NULL)
-#     ),
-#     column(3,style='padding:0px;',
-#            checkboxInput("mainYAxisGuide","Y-axis guide", value = FALSE, width = NULL)
-#     ),
-#     style = "opacity: 0.80"
-#   )
-# )
-)
+  
+  ############# Axis guide BOX
+  # conditionalPanel(
+  #   condition = "input.tabs=='Main profile'",
+  #   
+  #   absolutePanel(
+  #     bottom = 0, left = 130,
+  #     fixed = TRUE,
+  #     draggable = TRUE,
+  #     column(3,
+  #            checkboxInput("mainXAxisGuide","X-axis guide", value = FALSE, width = NULL)
+  #     ),
+  #     column(3,style='padding:0px;',
+  #            checkboxInput("mainYAxisGuide","Y-axis guide", value = FALSE, width = NULL)
+  #     ),
+  #     style = "opacity: 0.80"
+  #   )
+  # )
+  )
 )
