@@ -1,29 +1,30 @@
-if (!require("shiny")) {install.packages("shiny")}
-if (!require("shinyBS")) {install.packages("shinyBS")}
-if (!require("ggplot2")) {install.packages("ggplot2")}
-if (!require("reshape2")) {install.packages("reshape2")}
-if (!require("plyr")) {install.packages("plyr")}
-if (!require("dplyr")) {install.packages("dplyr")}
-if (!require("tidyr")) {install.packages("tidyr")}
-if (!require("scales")) {install.packages("scales")}
-if (!require("grid")) {install.packages("grid")}
-if (!require("gridExtra")) {install.packages("gridExtra")}
-if (!require("ape")) {install.packages("ape")}
-if (!require("stringr")) {install.packages("stringr")}
-if (!require("gtable")) {install.packages("gtable")}
-if (!require("dendextend")) {install.packages("dendextend")}
-if (!require("ggdendro")) {install.packages("ggdendro")}
-if (!require("gplots")) {install.packages("gplots")}
-if (!require("data.table")) {install.packages("data.table")}
+if(!("pacman" %in% installed.packages())) install.packages("pacman")
+library(pacman)
+p_load(shiny,shinyBS,ggplot2,reshape2,plyr,dplyr,tidyr,scales,grid,gridExtra,ape,stringr,gtable,dendextend,ggdendro,gplots,data.table,taxize,install=T)
+
+# if (!require("shiny")) {install.packages("shiny")}
+# if (!require("shinyBS")) {install.packages("shinyBS")}
+# if (!require("ggplot2")) {install.packages("ggplot2")}
+# if (!require("reshape2")) {install.packages("reshape2")}
+# if (!require("plyr")) {install.packages("plyr")}
+# if (!require("dplyr")) {install.packages("dplyr")}
+# if (!require("tidyr")) {install.packages("tidyr")}
+# if (!require("scales")) {install.packages("scales")}
+# if (!require("grid")) {install.packages("grid")}
+# if (!require("gridExtra")) {install.packages("gridExtra")}
+# if (!require("ape")) {install.packages("ape")}
+# if (!require("stringr")) {install.packages("stringr")}
+# if (!require("gtable")) {install.packages("gtable")}
+# if (!require("dendextend")) {install.packages("dendextend")}
+# if (!require("ggdendro")) {install.packages("ggdendro")}
+# if (!require("gplots")) {install.packages("gplots")}
+# if (!require("data.table")) {install.packages("data.table")}
+# if (!require("taxize")) {install.packages("taxize")}
+
 if (!require("Biostrings")) {
   source("https://bioconductor.org/biocLite.R")
   biocLite("Biostrings")
 }
-if (!require("taxize")) {install.packages("taxize")}
-
-# if(!("pacman" %in% installed.packages())) install.packages("pacman")
-# library(pacman)
-# p_load(RJSONIO,igraph,httr,stringr,XML,RColorBrewer,devtools)
 
 #############################################################
 ######################## FUNCTIONS ##########################
@@ -371,15 +372,10 @@ shinyServer(function(input, output, session) {
       
       if(checkXmlFormat() == TRUE){
         longDf <- xmlParser(filein$datapath)
-        if(is.na(colnames(longDf)[4])){
-          textInput("var1_id", h5("First variable:"), value = "Variable 1", width="100%", placeholder="Name of first variable")
-        } else {
-          textInput("var1_id", h5("First variable:"), value = colnames(longDf)[4], width="100%", placeholder="Name of first variable")
-        }
+        textInput("var1_id", h5("First variable:"), value = colnames(longDf)[4], width="100%", placeholder="Name of first variable")
       } else if(checkLongFormat() == TRUE){
         headerIn <- readLines(filein$datapath, n = 1)
         headerIn <- unlist(strsplit(headerIn,split = '\t'))
-        
         textInput("var1_id", h5("First variable:"), value = headerIn[4], width="100%", placeholder="Name of first variable")
       } else {
         textInput("var1_id", h5("First variable:"), value = "Variable 1", width="100%", placeholder="Name of first variable")
@@ -396,15 +392,10 @@ shinyServer(function(input, output, session) {
       
       if(checkXmlFormat() == TRUE){
         longDf <- xmlParser(filein$datapath)
-        if(is.na(colnames(longDf)[5])){
-          textInput("var2_id", h5("Second variable:"), value = "Variable 2", width="100%", placeholder="Name of second variable")
-        } else {
-          textInput("var2_id", h5("Second variable:"), value = colnames(longDf)[5], width="100%", placeholder="Name of second variable")
-        }
+        textInput("var2_id", h5("Second variable:"), value = colnames(longDf)[5], width="100%", placeholder="Name of second variable")
       } else if(checkLongFormat() == TRUE){
         headerIn <- readLines(filein$datapath, n = 1)
         headerIn <- unlist(strsplit(headerIn,split = '\t'))
-        
         textInput("var2_id", h5("Second variable:"), value = headerIn[5], width="100%", placeholder="Name of second variable")
       } else {
         textInput("var2_id", h5("Second variable:"), value = "Variable 2", width="100%", placeholder="Name of second variable")
@@ -419,19 +410,52 @@ shinyServer(function(input, output, session) {
   
   ######## variable 1 & 2 cutoff slidebar (main plot)
   output$var1_cutoff <- renderUI({
-    sliderInput("var1",paste(input$var1_id,"cutoff:"), min = 0, max = 1, step = 0.025, value = c(0.0,1.0), width = 200)
+    if(v$doPlot == FALSE){
+      sliderInput("var1","Variable 1 cutoff:", min = 0, max = 1, step = 0.025, value = c(0.0,1.0), width = 200)
+    } else {
+      if(nchar(input$var1_id) == 0){
+        em(strong("1. variable not available"))
+      } else {
+        sliderInput("var1",paste(input$var1_id,"cutoff:"), min = 0, max = 1, step = 0.025, value = c(0.0,1.0), width = 200)
+      }
+    }
   })
+  
   output$var2_cutoff <- renderUI({
-    sliderInput("var2",paste(input$var2_id,"cutoff:"), min = 0, max = 1, step = 0.025, value = c(0.0,1.0), width = 200)
+    if(v$doPlot == FALSE){
+      sliderInput("var2","Variable 1 cutoff:", min = 0, max = 1, step = 0.025, value = c(0.0,1.0), width = 200)
+    } else {
+      if(nchar(input$var2_id) == 0){
+        em(strong("2. variable not available"))
+      } else {
+        sliderInput("var2",paste(input$var2_id,"cutoff:"), min = 0, max = 1, step = 0.025, value = c(0.0,1.0), width = 200)
+      }
+    }
   })
   
   ######## render filter slidebars for Customized plot
   output$var1Filter.ui <- renderUI({
-    sliderInput("var1cus",paste(input$var1_id,"cutoff:"), min = 0, max = 1, step = 0.025, value = c(input$var1[1],input$var1[2]), width = 200)
+    if(v$doPlot == FALSE){
+      sliderInput("var1","Variable 1 cutoff:", min = 0, max = 1, step = 0.025, value = c(0.0,1.0), width = 200)
+    } else {
+      if(nchar(input$var1_id) == 0){
+        em(strong("1. variable not available"))
+      } else {
+        sliderInput("var1cus",paste(input$var1_id,"cutoff:"), min = 0, max = 1, step = 0.025, value = c(input$var1[1],input$var1[2]), width = 200)
+      }
+    }
   })
   
   output$var2Filter.ui <- renderUI({
-    sliderInput("var2cus",paste(input$var2_id,"cutoff:"), min = 0, max = 1, step = 0.025, value = c(input$var2[1],input$var2[2]), width = 200)
+    if(v$doPlot == FALSE){
+      sliderInput("var2","Variable 1 cutoff:", min = 0, max = 1, step = 0.025, value = c(0.0,1.0), width = 200)
+    } else {
+      if(nchar(input$var2_id) == 0){
+        em(strong("2. variable not available"))
+      } else {
+        sliderInput("var2cus",paste(input$var2_id,"cutoff:"), min = 0, max = 1, step = 0.025, value = c(input$var2[1],input$var2[2]), width = 200)
+      }
+    }
   })
   
   output$percentFilter.ui <- renderUI({
@@ -756,10 +780,6 @@ shinyServer(function(input, output, session) {
     v2$parseAppend <- input$BUTparseAppend
   })
   
-  # observeEvent(input$BUTno, {
-  #   toggleModal(session, "parseConfirm", toggle = "close")
-  # })
-  
   ######### create taxonID.list.fullRankID and taxonNamesReduced.txt from input file (if confirmed by BUTyes)
   observe({
     filein <- input$mainInput
@@ -943,8 +963,6 @@ shinyServer(function(input, output, session) {
     if (input$do > 0) {
       toggleState("mainInput")
       toggleState("geneList_selected")
-      #toggleState("newTaxaAsk")
-      #toggleState("parseAsk")
     }
   })
   
@@ -968,25 +986,6 @@ shinyServer(function(input, output, session) {
       updateSelectInput(session,'inSelect',"",as.list(levels(choice$fullName)),"Microsporidia")
     }
   })
-  
-  # #### disable clusterGene if input has only 1 gene
-  # observe({
-  #   filein <- input$mainInput
-  #   if(is.null(filein)){return()}
-  #   else{
-  #     if(checkLongFormat() == TRUE){
-  #       dt <- long2wide(filein)
-  #     } else {
-  #       dt <- as.data.frame(read.table(file=filein$datapath, sep='\t',header=T,check.names=FALSE,comment.char=""))
-  #     }
-  #     
-  #     if(nrow(dt) < 2){
-  #       updateRadioButtons(session,"ordering","",
-  #                          choices = c("alphabetical","none"), selected = "alphabetical",
-  #                          inline = F)
-  #     } 
-  #   }
-  # })
   
   #############################################################
   ######################  ADD NEW TAXA  #######################
@@ -1046,7 +1045,7 @@ shinyServer(function(input, output, session) {
                        & row.names(dupDt) != "genus" & row.names(dupDt) != "family"
                        & row.names(dupDt) != "order" & row.names(dupDt) != "class"
                        & row.names(dupDt) != "phylum" & row.names(dupDt) != "kingdom"
-                       & row.names(dupDt) != "superkingdom",]
+                       & row.names(dupDt) != "superkingdom" & row.names(dupDt) != "root",]
     # transpose again
     tDupDt <- as.data.frame(t(dupDt_mod))
     # list of columns need to be dropped
@@ -1365,6 +1364,8 @@ shinyServer(function(input, output, session) {
     fullMdData$fullName <- as.vector(fullMdData$fullName)
     names(fullMdData)[names(fullMdData)=="orthoID.x"] <- "orthoID"
     fullMdData ### parsed input data frame !!!
+    
+    return(fullMdData)
   })
   
   #############################################################
@@ -1420,37 +1421,37 @@ shinyServer(function(input, output, session) {
       if (input$addCustomProfile == TRUE){
         out <- selectedGeneAge()
         if(length(out)>0){
-          selectInput('inSeq','',out,selected=as.list(out),multiple=TRUE)
+          selectInput('inSeq','',out,selected=as.list(out),multiple=TRUE,selectize=FALSE)
         } 
         else {
-          selectInput('inSeq','',outAll,selected=outAll[1],multiple=TRUE)
+          selectInput('inSeq','',outAll,selected=outAll[1],multiple=TRUE,selectize=FALSE)
         }
       } else if(input$addClusterCustomProfile == TRUE){
         out <- brushedClusterGene()
         if(length(out)>0){
-          selectInput('inSeq','',out,selected=as.list(out),multiple=TRUE)
+          selectInput('inSeq','',out,selected=as.list(out),multiple=TRUE,selectize=FALSE)
         } 
         else {
-          selectInput('inSeq','',outAll,selected=outAll[1],multiple=TRUE)
+          selectInput('inSeq','',outAll,selected=outAll[1],multiple=TRUE,selectize=FALSE)
         }
       }
       else if(input$addConsGeneCustomProfile == TRUE){
         out <- consGeneDf()
         if(length(out)>0){
-          selectInput('inSeq','',out,selected=as.list(out),multiple=TRUE)
+          selectInput('inSeq','',out,selected=as.list(out),multiple=TRUE,selectize=FALSE)
         }
         else {
-          selectInput('inSeq','',outAll,selected=outAll[1],multiple=TRUE)
+          selectInput('inSeq','',outAll,selected=outAll[1],multiple=TRUE,selectize=FALSE)
         }
       } else {
         if(is.null(fileCustom)){
-          selectInput('inSeq','',outAll,selected=outAll[1],multiple=TRUE)
+          selectInput('inSeq','',outAll,selected=outAll[1],multiple=TRUE,selectize=FALSE)
         }
         else {
           customList <- as.data.frame(read.table(file=fileCustom$datapath, header=FALSE))
           customList$V1 <- as.factor(customList$V1)
           out <- as.list(levels(customList$V1))
-          selectInput('inSeq','',out,selected=out,multiple=TRUE)
+          selectInput('inSeq','',out,selected=out,multiple=TRUE,selectize=FALSE)
         }
       }
     }
@@ -1474,9 +1475,9 @@ shinyServer(function(input, output, session) {
       
       if(input$applyCusTaxa == TRUE){
         out <- cusTaxaName()
-        selectInput('inTaxa','',out,selected=out,multiple=TRUE)
+        selectInput('inTaxa','',out,selected=out,multiple=TRUE,selectize=FALSE)
       } else {
-        selectInput('inTaxa','',out,selected=out[1],multiple=TRUE)
+        selectInput('inTaxa','',out,selected=out[1],multiple=TRUE,selectize=FALSE)
       }
     }
   })
@@ -1694,63 +1695,6 @@ shinyServer(function(input, output, session) {
     }
   })
   
-  
-  ########### plot guide axis lines into an absolute panel
-  # ##### get margin size of main plot
-  # mainMagin <- reactive({
-  #   p <- mainPlot()
-  #   fullSize <- as.list(par()$fin)
-  #   plotSize <- as.list(par()$pin)
-  #   print(par()$fin)
-  # })
-  
-  # output$mainAxis <- renderPlot(bg="transparent",{
-  #   if(input$autoUpdate == FALSE){
-  #     # Add dependency on the update button (only update when button is clicked)
-  #     input$updateBtn
-  #     isolate({
-  #       #list <- allTaxaList()
-  #       p <- mainPlot()
-  #       g <- ggplotGrob(p)
-  # 
-  #       if(input$mainXAxisGuide == TRUE & input$mainYAxisGuide == FALSE){
-  #         s <- gtable_filter(g, 'axis-b', trim=F)  ### filter to get x-axis
-  #       } else if (input$mainXAxisGuide == FALSE & input$mainYAxisGuide == TRUE){
-  #         s <- gtable_filter(g, 'axis-l', trim=F)  ### filter to get y-axis
-  #       } else if (input$mainXAxisGuide == TRUE & input$mainYAxisGuide == TRUE){
-  #         s <- gtable_filter(g, 'axis-b|axis-l', trim=F)  ### filter to get x-axis and y-axis
-  #       }
-  # 
-  #       # draw axis(es)
-  #       grid.draw(s)
-  #     })
-  #   } else {
-  #     p <- mainPlot()
-  #     g <- ggplotGrob(p)
-  # 
-  #     if(input$mainXAxisGuide == TRUE & input$mainYAxisGuide == FALSE){
-  #       s <- gtable_filter(g, 'axis-b', trim=F)  ### filter to get x-axis
-  #     } else if (input$mainXAxisGuide == FALSE & input$mainYAxisGuide == TRUE){
-  #       s <- gtable_filter(g, 'axis-l', trim=F)  ### filter to get y-axis
-  #     } else if (input$mainXAxisGuide == TRUE & input$mainYAxisGuide == TRUE){
-  #       s <- gtable_filter(g, 'axis-b|axis-l', trim=F)  ### filter to get x-axis and y-axis
-  #     }
-  #     grid.draw(s)
-  #   }
-  # })
-  # 
-  # output$mainAxisRender <- renderUI({
-  #   if(input$autoUpdate == FALSE){
-  #     # Add dependency on the update button (only update when button is clicked)
-  #     input$updateBtn
-  #     isolate({
-  #       plotOutput("mainAxis", width=input$width, height=input$height)
-  #     })
-  #   } else{
-  #     plotOutput("mainAxis", width=input$width, height=input$height)
-  #   }
-  # })
-  
   ########### download main plot
   output$plotDownload <- downloadHandler(
     filename = function() {c("plot.pdf")},
@@ -1834,7 +1778,16 @@ shinyServer(function(input, output, session) {
   
   ######## list of available variables for distribution plot
   output$selected.distribution = renderUI({
-    varList <- as.list(c(input$var1_id,input$var2_id,"% present taxa"))
+    if(nchar(input$var1_id) == 0 & nchar(input$var2_id) == 0){
+      varList <- "% present taxa"
+    } else if(nchar(input$var1_id) == 0 & nchar(input$var2_id) > 0){
+      varList <- as.list(c(input$var2_id,"% present taxa"))
+    } else if(nchar(input$var1_id) > 0 & nchar(input$var2_id) == 0){
+      varList <- as.list(c(input$var1_id,"% present taxa"))
+    } else {
+      varList <- as.list(c(input$var1_id,input$var2_id,"% present taxa"))
+    }
+    
     selectInput('selected_dist','Choose variable to plot:',varList,varList[1])
   })
   
@@ -1860,12 +1813,28 @@ shinyServer(function(input, output, session) {
       
       if(checkXmlFormat() == TRUE){
         dataOrig <- xmlParser(filein$datapath)
-        colnames(dataOrig) <- c("geneID","ncbiID","orthoID","var1","var2")
-        splitDt <- dataOrig[,c("orthoID","var1","var2")]
+        if(ncol(dataOrig) < 4){
+          colnames(dataOrig) <- c("geneID","ncbiID","orthoID")
+          splitDt <- dataOrig[,c("orthoID")]
+        } else if(ncol(dataOrig) < 5){
+          colnames(dataOrig) <- c("geneID","ncbiID","orthoID","var1")
+          splitDt <- dataOrig[,c("orthoID","var1")]
+        } else {
+          colnames(dataOrig) <- c("geneID","ncbiID","orthoID","var1","var2")
+          splitDt <- dataOrig[,c("orthoID","var1","var2")]
+        }
       } else if(checkLongFormat() == TRUE){
         dataOrig <- as.data.frame(read.table(file=filein$datapath, sep='\t',header=T,check.names=FALSE,comment.char=""))
-        colnames(dataOrig) <- c("geneID","ncbiID","orthoID","var1","var2")
-        splitDt <- dataOrig[,c("orthoID","var1","var2")]
+        if(ncol(dataOrig) < 4){
+          colnames(dataOrig) <- c("geneID","ncbiID","orthoID")
+          splitDt <- dataOrig[,c("orthoID")]
+        } else if(ncol(dataOrig) < 5){
+          colnames(dataOrig) <- c("geneID","ncbiID","orthoID","var1")
+          splitDt <- dataOrig[,c("orthoID","var1")]
+        } else {
+          colnames(dataOrig) <- c("geneID","ncbiID","orthoID","var1","var2")
+          splitDt <- dataOrig[,c("orthoID","var1","var2")]
+        }
       } else {
         dataOrig <- as.data.frame(read.table(file=filein$datapath, sep='\t',header=T,check.names=FALSE,comment.char=""))
         # convert into paired columns
@@ -1891,13 +1860,16 @@ shinyServer(function(input, output, session) {
     }
     
     # convert factor into numeric for "var1" & "var2" column
-    splitDt$var1 <- suppressWarnings(as.numeric(as.character(splitDt$var1)))
-    splitDt$var2 <- suppressWarnings(as.numeric(as.character(splitDt$var2)))
-    
-    # filter splitDt based on selected var1 cutoff
-    splitDt <- splitDt[splitDt$var1 >= input$var1[1] & splitDt$var1 <= input$var1[2],]
-    # filter splitDt based on selected var2 cutoff
-    splitDt <- splitDt[splitDt$var2 >= input$var2[1] & splitDt$var2 <= input$var2[2],]
+    if("var1" %in% colnames(splitDt)){
+      splitDt$var1 <- suppressWarnings(as.numeric(as.character(splitDt$var1)))
+      # filter splitDt based on selected var1 cutoff
+      splitDt <- splitDt[splitDt$var1 >= input$var1[1] & splitDt$var1 <= input$var1[2],]
+    }
+    if("var2" %in% colnames(splitDt)){
+      splitDt$var2 <- suppressWarnings(as.numeric(as.character(splitDt$var2)))
+      # filter splitDt based on selected var2 cutoff
+      splitDt <- splitDt[splitDt$var2 >= input$var2[1] & splitDt$var2 <= input$var2[2],]
+    }
     
     # return dt
     splitDt
@@ -2008,10 +1980,22 @@ shinyServer(function(input, output, session) {
       
       if(checkXmlFormat() == TRUE){
         mdData <- xmlParser(filein$datapath)
-        colnames(mdData) <- c("geneID","ncbiID","orthoID","var1","var2")
+        if(ncol(mdData) < 4){
+          colnames(mdData) <- c("geneID","ncbiID","orthoID")
+        } else if(ncol(mdData) < 5){
+          colnames(mdData) <- c("geneID","ncbiID","orthoID","var1")
+        } else {
+          colnames(mdData) <- c("geneID","ncbiID","orthoID","var1","var2")
+        }
       } else if(checkLongFormat() == TRUE){
         mdData <- as.data.frame(read.table(file=filein$datapath, sep='\t',header=T,check.names=FALSE,comment.char=""))
-        colnames(mdData) <- c("geneID","ncbiID","orthoID","var1","var2")
+        if(ncol(mdData) < 4){
+          colnames(mdData) <- c("geneID","ncbiID","orthoID")
+        } else if(ncol(mdData) < 5){
+          colnames(mdData) <- c("geneID","ncbiID","orthoID","var1")
+        } else {
+          colnames(mdData) <- c("geneID","ncbiID","orthoID","var1","var2")
+        }
       } else {
         data <- as.data.frame(read.table(file=filein$datapath, sep='\t',header=T,check.names=FALSE,comment.char=""))
         # convert into paired columns
@@ -2036,8 +2020,12 @@ shinyServer(function(input, output, session) {
     
     # merge mdData, mdDataTrace and taxaList to get taxonomy info
     taxaMdData <- merge(mdData,taxaList,by='ncbiID')
-    taxaMdData$var1 <- suppressWarnings(as.numeric(as.character(taxaMdData$var1)))
-    taxaMdData$var2 <- suppressWarnings(as.numeric(as.character(taxaMdData$var2)))
+    if("var1" %in% colnames(taxaMdData)){
+      taxaMdData$var1 <- suppressWarnings(as.numeric(as.character(taxaMdData$var1)))
+    }
+    if("var2" %in% colnames(taxaMdData)){
+      taxaMdData$var2 <- suppressWarnings(as.numeric(as.character(taxaMdData$var2)))
+    }
     
     # calculate % present species
     finalPresSpecDt <- calcPresSpec(taxaMdData, taxaCount)
@@ -2100,14 +2088,18 @@ shinyServer(function(input, output, session) {
     if(v$doPlot == FALSE){
       return()
     } else{
-      if(input$selected_dist == input$var1_id){
-        plotOutput("var1DistPlot",width=input$width,height = input$height)
-      }
-      else if(input$selected_dist == input$var2_id){
-        plotOutput("var2DistPlot",width=input$width,height = input$height)
-      }
-      else if(input$selected_dist == "% present taxa"){
-        plotOutput("presSpecPlot",width=input$width,height = input$height)
+      if(is.null(input$selected_dist)){
+        return()
+      } else {
+        if(input$selected_dist == "% present taxa"){
+          plotOutput("presSpecPlot",width=input$width,height = input$height)
+        } else{
+          if(input$selected_dist == input$var1_id){
+            plotOutput("var1DistPlot",width=input$width,height = input$height)
+          } else if(input$selected_dist == input$var2_id){
+            plotOutput("var2DistPlot",width=input$width,height = input$height)
+          }
+        }
       }
     }
   })
@@ -2270,19 +2262,6 @@ shinyServer(function(input, output, session) {
       selectedPlot()
     }
   })
-  
-  # ######## enable "plot selected sequences" button
-  # observeEvent(input$inSeq, ({
-  #   if(input$inSeq[1] != "all"){
-  #     updateButton(session, "plotCustom", disabled = FALSE)
-  #   }
-  # }))
-  #
-  # observeEvent(input$inTaxa, ({
-  #   if(input$inTaxa[1] != "all"){
-  #     updateButton(session, "plotCustom", disabled = FALSE)
-  #   }
-  # }))
   
   ######## plot selected sequences heatmap
   output$selectedPlot.ui <- renderUI({
@@ -2496,14 +2475,6 @@ shinyServer(function(input, output, session) {
     gp = gp+theme(axis.text.x = element_text(angle=90,hjust=1))
     gp
   })
-  
-  # ######## enable "detailed plot" button
-  # observeEvent(pointInfo(), ({
-  #   info <- pointInfo()
-  #   if(length(info) > 2){
-  #     updateButton(session, "go", disabled = FALSE)
-  #   }
-  # }))
   
   ######## plot detailed bar chart
   output$detailPlot.ui <- renderUI({
@@ -2823,6 +2794,7 @@ shinyServer(function(input, output, session) {
     
     ### full non-duplicated taxonomy data
     Dt <- nonDupTaxonDf()
+    
     ### subset of taxonomy data, containing only ranks from rankList
     subDt <- Dt[,c("abbrName",rankList)]
     
@@ -2842,11 +2814,12 @@ shinyServer(function(input, output, session) {
     }
     
     ### get main input data
-    mdData <- dataFiltered()
+    mdData <- droplevels(dataFiltered())
     mdData <- mdData[,c("geneID","ncbiID","orthoID","var1","var2","presSpec")]
     
     ### add "category" into mdData
     mdDataExtended <- merge(mdData,catDf,by="ncbiID",all.x = TRUE)
+    
     mdDataExtended$var1[mdDataExtended$var1 == "NA" | is.na(mdDataExtended$var1)] <- 0
     mdDataExtended$var2[mdDataExtended$var2 == "NA" | is.na(mdDataExtended$var2)] <- 0
     
@@ -3190,13 +3163,6 @@ shinyServer(function(input, output, session) {
   #################### CLUSTERING PROFILES ####################
   #############################################################
   
-  # output$dist.table <- renderTable({
-  #   data <- preData()
-  #   dat <- matrixForDitsCalc(data)
-  #   d <- dist(dat, method = input$distMethod)
-  #   df <- melt(as.matrix(d), varnames = c("row", "col"))
-  # })
-  
   ### cluster data
   clusterDataDend <- reactive({
     if(v$doPlot == FALSE){return()}
@@ -3355,7 +3321,7 @@ shinyServer(function(input, output, session) {
   output$filteredMainData <- renderDataTable({
     if(v$doPlot == FALSE){return()}
     #data <- taxaID()
-    data <- allTaxaList()
+    #data <- allTaxaList()
     #data <- sortedTaxaList()
     #data <- preData()
     #data <- dataFiltered()
@@ -3365,7 +3331,7 @@ shinyServer(function(input, output, session) {
     #data <- presSpecAllDt()
     #data <- distDf()
     #data <- geneAgeDf()
-    #data <- downloadData()
+    data <- downloadData()
     data
   })
   
