@@ -4,9 +4,25 @@
 # p_load(shiny,shinyBS,ggplot2,reshape2,plyr,dplyr,tidyr,scales,grid,gridExtra,ape,stringr,gtable,dendextend,ggdendro,gplots,data.table,taxize,rdrop2,install=T)
 #######################################################
 
+##### check ggplot2 version #####
+version_above <- function(pkg, than) {
+  compareVersion(as.character(packageVersion(pkg)), than)
+}
+
+if ("ggplot2" %in% rownames(installed.packages())) {
+  if (version_above("ggplot2","2.2.0") == -1) {
+    source("https://bioconductor.org/biocLite.R")
+    biocLite("ggplot2")
+    require("ggplot2")
+  }
+} else {
+  source("https://bioconductor.org/biocLite.R")
+  biocLite("ggplot2")
+  require("ggplot2")
+}
+
 if (!require("shiny")) {install.packages("shiny")}
 if (!require("shinyBS")) {install.packages("shinyBS")}
-if (!require("ggplot2")) {install.packages("ggplot2")}
 if (!require("reshape2")) {install.packages("reshape2")}
 if (!require("plyr")) {install.packages("plyr")}
 if (!require("dplyr")) {install.packages("dplyr")}
@@ -1365,14 +1381,12 @@ shinyServer(function(input, output, session) {
     presMdData <- merge(taxaMdData,finalPresSpecDt,by=c('geneID','supertaxon'),all.x = TRUE)
     fullMdData <- merge(presMdData,scoreDf,by=c('geneID','supertaxon'), all.x = TRUE)
     fullMdData <- merge(fullMdData,taxaCount,by=('supertaxon'), all.x = TRUE)
-    
     # rename "freq" into "numberSpec"
     names(fullMdData)[names(fullMdData)=="freq"] <- "numberSpec"
     
     fullMdData$fullName <- as.vector(fullMdData$fullName)
     names(fullMdData)[names(fullMdData)=="orthoID.x"] <- "orthoID"
-    fullMdData ### parsed input data frame !!!
-    
+    fullMdData <- fullMdData[!duplicated(fullMdData), ] ### parsed input data frame !!!
     return(fullMdData)
   })
   
@@ -2448,7 +2462,6 @@ shinyServer(function(input, output, session) {
     else{
       plotTaxon = info[3]
       plotGeneID = info[1]
-      
       fullDf <- dataFiltered()
       selDf <- as.data.frame(fullDf[fullDf$geneID == plotGeneID & fullDf$supertaxon == plotTaxon,])
       selDf
@@ -2512,9 +2525,8 @@ shinyServer(function(input, output, session) {
     ### get pair of sequence IDs & var1
     seedID <- toString(selDf$geneID[1])
     orthoID <- toString(allOrthoID[corX])
-    var1 <- toString(selDf$var1[selDf$orthoID==orthoID])
-    var2 <- toString(selDf$var2[selDf$orthoID==orthoID])
-    
+    var1 <- toString(selDf$var1[selDf$orthoID==orthoID][1])
+    var2 <- toString(selDf$var2[selDf$orthoID==orthoID][1])
     ### return info
     if(orthoID != "NA"){
       info <- c(seedID,orthoID,var1,var2)
@@ -3463,4 +3475,4 @@ shinyServer(function(input, output, session) {
     # print(input$plot_dblclick$x)
     # paste(input$var1[1],input$var1[2])
   })
-  })
+})
