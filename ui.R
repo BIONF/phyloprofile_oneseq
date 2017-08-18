@@ -505,10 +505,32 @@ shinyUI(fluidPage(
     ########## DATA TAB ###########
     navbarMenu("Download filtered data",
                tabPanel("Main data",
-                        dataTableOutput("filteredMainData"),
-                        downloadButton('downloadData', 'Download filtered data')
+                        column(4,
+                               checkboxInput("getRepresentativeMain",strong(em("Download representative sequences")), value = FALSE, width = NULL)
+                        ),
+                        column(3,
+                               conditionalPanel(
+                                 condition = "input.getRepresentativeMain == true",
+                                 uiOutput("refVarMain.ui")
+                               )
+                        ),
+                        column(3,
+                               conditionalPanel(
+                                 condition = "input.getRepresentativeMain == true",
+                                 radioButtons(inputId="refTypeMain", label="Select representative by", choices=list("max","min"), selected="max", inline=T)
+                               )
+                        ),
+                        column(12,
+                               dataTableOutput("filteredMainData"),
+                               downloadButton('downloadData', 'Download filtered data')
+                        )
                ),
                tabPanel("Customized data",
+                        conditionalPanel(
+                          condition = "input.getRepresentativeMain == true",
+                          uiOutput("representativeInfo.ui")
+                        ),
+                        hr(),
                         dataTableOutput("filteredCustomData"),
                         downloadButton('downloadCustomData', 'Download customized data')
                )
@@ -562,7 +584,7 @@ bsModal("color", "Set colors for profile", "setColor", size = "small",
         hr(),
         colourpicker::colourInput("lowColor_var2", "Low variable 2", value = "grey95"),
         colourpicker::colourInput("highColor_var2", "High variable 2", value = "khaki"),
-        actionButton("defaultColorTrace","Default",style='padding:4px; font-size:100%'),
+        actionButton("defaultColorVar2","Default",style='padding:4px; font-size:100%'),
         hr(),
         colourpicker::colourInput("paraColor", "Color for inparalogs", value = "#07d000"),
         actionButton("defaultColorPara","Default",style='padding:4px; font-size:100%')

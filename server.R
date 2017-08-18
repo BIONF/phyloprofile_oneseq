@@ -225,7 +225,7 @@ heatmap.plotting <- function(data,xAxis,var1_id,var2_id,lowColor_var1,highColor_
     }
   } else {
     if(length(unique(na.omit(dataHeat$var1))) == 1){
-      p = p + geom_point(aes(size = presSpec),color = "#336a98")    ## geom_point for circle illusion (var1 and presence/absence)
+      p = p + geom_point(aes(size = presSpec),color = "#336a98",na.rm = TRUE)    ## geom_point for circle illusion (var1 and presence/absence)
     } else {
       p = p + geom_point(aes(colour = var1, size = presSpec),na.rm = TRUE)    ## geom_point for circle illusion (var1 and presence/absence)
       p = p + scale_color_gradient(low = lowColor_var1,high = highColor_var1, limits=c(0,1)) ## color of the corresponding aes (var1)
@@ -642,7 +642,7 @@ shinyServer(function(input, output, session) {
   })
   
   ######## reset colors
-  observeEvent(input$defaultColorTrace, {
+  observeEvent(input$defaultColorVar2, {
     shinyjs::reset("lowColor_var2")
     shinyjs::reset("highColor_var2")
   })
@@ -1297,7 +1297,7 @@ shinyServer(function(input, output, session) {
     # calculate frequency of all supertaxa
     taxaCount <- plyr::count(taxaList,'supertaxon')
     
-    # merge mdData, mdDataTrace and taxaList to get taxonomy info
+    # merge mdData, mdDataVar2 and taxaList to get taxonomy info
     taxaMdData <- merge(mdData,taxaList,by='ncbiID')
     taxaMdData$var1 <- suppressWarnings(as.numeric(as.character(taxaMdData$var1)))
     taxaMdData$var2 <- suppressWarnings(as.numeric(as.character(taxaMdData$var2)))
@@ -1771,9 +1771,9 @@ shinyServer(function(input, output, session) {
       spec <- toString(supertaxa[corX])
       
       # get var1, percentage of present species and var2 score
-      var1 <- dataHeat$var1[dataHeat$geneID == geneID & dataHeat$supertaxon == spec][1]
-      Percent <- dataHeat$presSpec[dataHeat$geneID == geneID & dataHeat$supertaxon == spec][1]
-      Trace <- dataHeat$var2[dataHeat$geneID == geneID & dataHeat$supertaxon == spec][1]
+      var1 <- max(na.omit(dataHeat$var1[dataHeat$geneID == geneID & dataHeat$supertaxon == spec]))
+      Percent <- max(na.omit(dataHeat$presSpec[dataHeat$geneID == geneID & dataHeat$supertaxon == spec]))
+      var2 <- max(na.omit(dataHeat$var2[dataHeat$geneID == geneID & dataHeat$supertaxon == spec]))
       # get ortholog ID
       orthoID <- dataHeat$orthoID[dataHeat$geneID == geneID & dataHeat$supertaxon == spec]
       if(length(orthoID) > 1){
@@ -1793,8 +1793,8 @@ shinyServer(function(input, output, session) {
       ### return info of clicked point
       if(is.na(as.numeric(Percent))){return()}
       else{
-        # info <- c(geneID,as.character(orthoID),as.character(spec),round(as.numeric(var1),2),round(as.numeric(Percent),2),round(as.numeric(Trace),2),pos)
-        info <- c(geneID,as.character(orthoID),as.character(spec),round(as.numeric(var1),2),round(as.numeric(Percent),2),round(as.numeric(Trace),2))
+        # info <- c(geneID,as.character(orthoID),as.character(spec),round(as.numeric(var1),2),round(as.numeric(Percent),2),round(as.numeric(var2),2),pos)
+        info <- c(geneID,as.character(orthoID),as.character(spec),round(as.numeric(var1),2),round(as.numeric(Percent),2),round(as.numeric(var2),2))
         return(info)
       }
     }
@@ -2060,7 +2060,7 @@ shinyServer(function(input, output, session) {
     # calculate frequency of all supertaxa
     taxaCount <- plyr::count(taxaList,'supertaxon')
     
-    # merge mdData, mdDataTrace and taxaList to get taxonomy info
+    # merge mdData, mdDatavar2 and taxaList to get taxonomy info
     taxaMdData <- merge(mdData,taxaList,by='ncbiID')
     if("var1" %in% colnames(taxaMdData)){
       taxaMdData$var1 <- suppressWarnings(as.numeric(as.character(taxaMdData$var1)))
@@ -2416,9 +2416,9 @@ shinyServer(function(input, output, session) {
       supertaxa <- levels(dataHeat$supertaxon)
       spec <- toString(supertaxa[corX])
       # get var1, percentage of present species and var2 score
-      var1 <- dataHeat$var1[dataHeat$geneID == geneID & dataHeat$supertaxon == spec][1]
-      Percent <- dataHeat$presSpec[dataHeat$geneID == geneID & dataHeat$supertaxon == spec][1]
-      Trace <- dataHeat$var2[dataHeat$geneID == geneID & dataHeat$supertaxon == spec][1]
+      var1 <- max(na.omit(dataHeat$var1[dataHeat$geneID == geneID & dataHeat$supertaxon == spec]))
+      Percent <- max(na.omit(dataHeat$presSpec[dataHeat$geneID == geneID & dataHeat$supertaxon == spec]))
+      var2 <- max(na.omit(dataHeat$var2[dataHeat$geneID == geneID & dataHeat$supertaxon == spec]))
       # get ortholog ID
       orthoID <- dataHeat$orthoID[dataHeat$geneID == geneID & dataHeat$supertaxon == spec]
       if(length(orthoID) > 1){
@@ -2427,7 +2427,7 @@ shinyServer(function(input, output, session) {
       
       if(is.na(as.numeric(Percent))){return()}
       else{
-        info <- c(geneID,as.character(orthoID),as.character(spec),round(as.numeric(var1),2),round(as.numeric(Percent),2),round(as.numeric(Trace),2))
+        info <- c(geneID,as.character(orthoID),as.character(spec),round(as.numeric(var1),2),round(as.numeric(Percent),2),round(as.numeric(var2),2))
       }
     }
   })
@@ -2441,7 +2441,7 @@ shinyServer(function(input, output, session) {
   output$pointInfo <- renderText({
     ##### GET INFO BASED ON CURRENT TAB
     if(input$tabs == 'Main profile'){
-      info <- mainPointInfo()  # info = groupID,orthoID,supertaxon,mVar1,%spec,trace
+      info <- mainPointInfo()  # info = groupID,orthoID,supertaxon,mVar1,%spec,var2
     } else if(input$tabs=='Customized profile'){
       info <- selectedPointInfo()
     } else {
@@ -2482,7 +2482,7 @@ shinyServer(function(input, output, session) {
     
     ##### GET INFO BASED ON CURRENT TAB
     if(input$tabs == 'Main profile'){
-      info <- mainPointInfo()  # info = groupID,orthoID,supertaxon,mVar1,%spec,trace
+      info <- mainPointInfo()  # info = groupID,orthoID,supertaxon,mVar1,%spec,var2
     } else if(input$tabs=='Customized profile'){
       info <- selectedPointInfo()
     }
@@ -3337,11 +3337,24 @@ shinyServer(function(input, output, session) {
   #############################################################
   
   ################### FOR MAIN PROFILE ########################
+  
+  ######## render variable used for identifying representative genes
+  output$refVarMain.ui <- renderUI({
+    if(nchar(input$var2_id) < 1 & nchar(input$var1_id) < 1){
+      radioButtons(inputId="refVarMain", label="Reference variable", choices=list(input$var1_id,input$var2_id), selected=input$var1_id)
+    } else if(nchar(input$var2_id) < 1){
+      radioButtons(inputId="refVarMain", label="Reference variable", choices=list(input$var1_id), selected=input$var1_id)
+    } else {
+      radioButtons(inputId="refVarMain", label="Reference variable", choices=list(input$var1_id,input$var2_id), selected=input$var1_id)
+    }
+  })
+  
   ######## filtered data for downloading
   downloadData <- reactive({
     ### check input
     if (v$doPlot == FALSE) return()
     
+    ### filtered data
     dataOut <- dataFiltered()
     dataOut <- as.data.frame(dataOut[dataOut$presSpec > 0,])
     dataOut <- dataOut[!is.na(dataOut$geneID),]
@@ -3355,7 +3368,36 @@ shinyServer(function(input, output, session) {
       dataOut$var2 <- 0
     }
     
-    dataOut <- dataOut[,c("geneID","orthoID","fullName","ncbiID","supertaxon","var1","var2","numberSpec","presSpec")]
+    ### select only representative genes if chosen
+    if(input$getRepresentativeMain == TRUE){
+      if(is.null(input$refVarMain)){return()}
+      else{
+        if(input$refVarMain == input$var1_id){
+          dataOutAgg <- aggregate(as.numeric(dataOut$var1), by = list(dataOut$geneID,dataOut$ncbiID), FUN = input$refTypeMain)
+        } else if (input$refVarMain == input$var2_id){
+          dataOutAgg <- aggregate(as.numeric(dataOut$var2), by = list(dataOut$geneID,dataOut$ncbiID), FUN = input$refTypeMain)
+        } else {
+          dataOutAgg <- dataOut[dataOut,c("geneID","ncbiID","var1")]
+        }
+        colnames(dataOutAgg) <- c("geneID","ncbiID","var_best")
+        
+        dataOutRepresentative <- merge(dataOut,dataOutAgg,by=c("geneID","ncbiID"),all.x=TRUE)
+        
+        if(input$refVarMain == input$var1_id){
+          dataOut <- dataOutRepresentative[dataOutRepresentative$var1 == dataOutRepresentative$var_best,]
+        } else if (input$refVarMain == input$var2_id){
+          dataOut <- dataOutRepresentative[dataOutRepresentative$var2 == dataOutRepresentative$var_best,]
+        } else {
+          dataOut <- dataOut
+        }
+        
+        dataOut$dup <- paste0(dataOut$geneID,"#",dataOut$ncbiID)  # <- used to select only one ortholog, if there exist more than one "representative" 
+        dataOut <- dataOut[!duplicated(c(dataOut$dup)),]
+      }
+    }
+    
+    ### sub select columns of dataout
+    dataOut <- dataOut[,c("geneID","orthoID","fullName","ncbiID","supertaxon","var1","var2","presSpec")] #,"numberSpec"
     dataOut <- dataOut[order(dataOut$geneID,dataOut$supertaxon),]
     dataOut <- dataOut[complete.cases(dataOut),]
     
@@ -3365,15 +3407,26 @@ shinyServer(function(input, output, session) {
     dataOut$supertaxon <- substr(dataOut$supertaxon,6,nchar(as.character(dataOut$supertaxon)))
     dataOut$var1 <- as.character(dataOut$var1)
     dataOut$var2 <- as.character(dataOut$var2)
-    dataOut$numberSpec <- as.numeric(dataOut$numberSpec)
+    # dataOut$numberSpec <- as.numeric(dataOut$numberSpec)
     dataOut$presSpec <- as.numeric(dataOut$presSpec)
     
+    ### rename columns
     names(dataOut)[names(dataOut)=="presSpec"] <- "%Spec"
-    names(dataOut)[names(dataOut)=="numberSpec"] <- "totalSpec"
-    names(dataOut)[names(dataOut)=="var1"] <- input$var1_id
-    names(dataOut)[names(dataOut)=="var2"] <- input$var2_id
+    # names(dataOut)[names(dataOut)=="numberSpec"] <- "totalSpec"
+    if(nchar(input$var1_id) > 0){
+      names(dataOut)[names(dataOut)=="var1"] <- input$var1_id
+    } else {
+      dataOut <- subset(dataOut, select = -c(var1) )
+    }
+    if(nchar(input$var2_id) > 0){
+      names(dataOut)[names(dataOut)=="var2"] <- input$var2_id
+    } else {
+      dataOut <- subset(dataOut, select = -c(var2) )
+    }
+    
+    # return data for downloading
     dataOut <- as.matrix(dataOut)
-    dataOut
+    return(dataOut)
   })
   
   ######## download data
@@ -3404,6 +3457,13 @@ shinyServer(function(input, output, session) {
   })
   
   ################### FOR CUSTOMIZED PROFILE ########################
+  
+  ######## render variable used for identifying representative genes
+  output$representativeInfo.ui <- renderUI({
+    msg <- paste0("NOTE: According to your choice in [Download filtered data -> Main data], only representative sequences with ",as.character(input$refTypeMain)," ",as.character(input$refVarMain),"  will be downloaded!")
+    strong(em(msg),style = "color:red")
+  })
+  
   ######## filtered data for downloading
   downloadCustomData <- reactive({
     ### check input
@@ -3502,9 +3562,9 @@ shinyServer(function(input, output, session) {
       <p>Please check the latest version at&nbsp;<a href="https://github.com/trvinh/phyloprofile">https://github.com/trvinh/phyloprofile</a></p>
       <p>Or try the online version at&nbsp;<a href="https://phyloprofile.shinyapps.io/phyloprofile/">https://phyloprofile.shinyapps.io/phyloprofile/</a></p>
       '
-      )
+)
   })
-
+  
   ############### USED FOR TESTING
   output$testOutput <- renderText({
     # ### print infile
