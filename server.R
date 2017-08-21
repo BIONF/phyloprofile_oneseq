@@ -4,48 +4,8 @@
 # p_load(shiny,shinyBS,ggplot2,reshape2,plyr,dplyr,tidyr,scales,grid,gridExtra,ape,stringr,gtable,dendextend,ggdendro,gplots,data.table,taxize,rdrop2,install=T)
 #######################################################
 
-##### check ggplot2 version #####
-version_above <- function(pkg, than) {
-  compareVersion(as.character(packageVersion(pkg)), than)
-}
-
-if ("ggplot2" %in% rownames(installed.packages())) {
-  if (version_above("ggplot2","2.2.0") == -1) {
-    source("https://bioconductor.org/biocLite.R")
-    biocLite("ggplot2")
-    require("ggplot2")
-  }
-} else {
-  source("https://bioconductor.org/biocLite.R")
-  biocLite("ggplot2")
-  require("ggplot2")
-}
-require("ggplot2")
-
-if (!require("shiny")) {install.packages("shiny")}
-if (!require("shinyBS")) {install.packages("shinyBS")}
-if (!require("reshape2")) {install.packages("reshape2")}
-if (!require("plyr")) {install.packages("plyr")}
-if (!require("dplyr")) {install.packages("dplyr")}
-if (!require("tidyr")) {install.packages("tidyr")}
-if (!require("scales")) {install.packages("scales")}
-if (!require("grid")) {install.packages("grid")}
-if (!require("gridExtra")) {install.packages("gridExtra")}
-if (!require("ape")) {install.packages("ape")}
-if (!require("stringr")) {install.packages("stringr")}
-if (!require("gtable")) {install.packages("gtable")}
-if (!require("dendextend")) {install.packages("dendextend")}
-if (!require("ggdendro")) {install.packages("ggdendro")}
-if (!require("gplots")) {install.packages("gplots")}
-if (!require("data.table")) {install.packages("data.table")}
-if (!require("taxize")) {install.packages("taxize")}
-if (!require("rdrop2")) {install.packages("rdrop2")}
-
-if (!require("Biostrings")) {
-  source("https://bioconductor.org/biocLite.R")
-  biocLite("Biostrings")
-  require("Biostrings")
-}
+packages <- c("shiny","shinyBS","ggplot2","reshape2","plyr","dplyr","tidyr","scales","grid","gridExtra","ape","stringr","gtable","dendextend","ggdendro","gplots","data.table","taxize","rdrop2","Biostrings")
+sapply(packages, require, character.only = TRUE)
 
 token <- readRDS("droptoken.rds")
 
@@ -72,12 +32,12 @@ xmlParser <- function(inputFile){
 #   colnames(longDf) <- c("geneID","ncbiID","orthoID","var1","var2")
 #   longDf$value <- paste0(longDf$orthoID,"#",longDf$var1,"#",longDf$var2)
 #   longDfmod <- longDf[,c("geneID","ncbiID","value")]
-#   
+#
 #   # count paralogs
 #   longDfmod <- data.table(longDfmod)
 #   longDfmod[ ,paralog := 1:.N, by=c("geneID","ncbiID")]
 #   longDfmod <- data.frame(longDfmod)
-#   
+#
 #   # return wide data frame
 #   wideDf <- spread(longDfmod, ncbiID, value)
 #   wideDf <- subset(wideDf,paralog == 1)   # remove co-orthologs
@@ -92,7 +52,7 @@ clusteredGeneList <- function(data,distMethod,clusterMethod){
   col.order <- hclust(dist(t(data), method = distMethod), method = clusterMethod)$order
   
   # re-order data accoring to clustering
-  dat_new <- data[row.order, col.order] 
+  dat_new <- data[row.order, col.order]
   
   # return clustered gene ID list
   clusteredGeneIDs <- as.factor(row.names(dat_new))
@@ -201,7 +161,7 @@ heatmap.plotting <- function(data,xAxis,var1_id,var2_id,lowColor_var1,highColor_
     dataHeat$paralogSize <- (dataHeat$paralog/maxParalog)*3
   }
   
-  ### remove prefix number of taxa names but keep the order  
+  ### remove prefix number of taxa names but keep the order
   dataHeat$supertaxon <- mapvalues(warn_missing=F,dataHeat$supertaxon,from=as.character(dataHeat$supertaxon),to=substr(as.character(dataHeat$supertaxon),6,nchar(as.character(dataHeat$supertaxon))))
   
   ### format plot
@@ -358,11 +318,11 @@ shinyServer(function(input, output, session) {
               idDf[i,] <- c(as.character(taxaNameDf[i,]),paste0("no alternative"),paste0("NA"),"notfound")
             }
           } else {
-            idDf[i,] <- c(as.character(taxaNameDf[i,]),"NA",paste0("ncbi",id),"retrieved") 
+            idDf[i,] <- c(as.character(taxaNameDf[i,]),"NA",paste0("ncbi",id),"retrieved")
           }
           # Increment the progress bar, and update the detail text.
           incProgress(1/nrow(taxaNameDf), detail = paste(i,"/",nrow(taxaNameDf)))
-        }        
+        }
       })
       print(idDf)
       ### return
@@ -465,7 +425,7 @@ shinyServer(function(input, output, session) {
         textInput("var2_id", h5("Second variable:"), value = headerIn[5], width="100%", placeholder="Name of second variable")
       } else {
         textInput("var2_id", h5("Second variable:"), value = "Variable 2", width="100%", placeholder="Name of second variable")
-      } 
+      }
     }
   })
   
@@ -646,7 +606,7 @@ shinyServer(function(input, output, session) {
     shinyjs::reset("ySizeSelect")
     shinyjs::reset("legendSizeSelect")
     shinyjs::reset("dotZoomSelect")
-  })  
+  })
   
   ######## close customized config
   observeEvent(input$applySelectedConfig, {
@@ -706,7 +666,7 @@ shinyServer(function(input, output, session) {
       
       # get list of input taxa (from main input file)
       if(input$demo == TRUE){
-        data <- as.data.frame(read.csv("https://raw.githubusercontent.com/trvinh/phyloprofile/master/data/demo/test.main",stringsAsFactors = FALSE, sep='\t', comment.char=""))
+        data <- drop_read_csv("/phyloprofile/data/demo/test.main", stringsAsFactors = FALSE, sep='\t', comment.char="",header = TRUE)
         inputTaxa <- colnames(data)
       } else {
         filein <- input$mainInput
@@ -755,7 +715,7 @@ shinyServer(function(input, output, session) {
   ######## get input taxa (a subset of available taxa in taxonID.list.fullRankID)
   subsetTaxa <- reactive({
     if(input$demo == TRUE){
-      data <- as.data.frame(read.csv("https://raw.githubusercontent.com/trvinh/phyloprofile/master/data/demo/test.main",stringsAsFactors = FALSE, sep='\t', comment.char=""))
+      data <- drop_read_csv("/phyloprofile/data/demo/test.main", stringsAsFactors = FALSE, sep='\t', comment.char="",header = TRUE)
       inputTaxa <- colnames(data)
     } else {
       filein <- input$mainInput
@@ -789,7 +749,7 @@ shinyServer(function(input, output, session) {
   ######## render input files
   output$mainInputFile.ui <- renderUI({
     if(input$demo == TRUE){
-      h4(a("demo/test.main.long", href="https://raw.githubusercontent.com/trvinh/phyloprofile/master/data/demo/test.main.long", target="_blank"))
+      h4(a("demo/test.main.long", href="https://www.dropbox.com/s/blk7a9pquivdpbb/test.main.long?dl=0", target="_blank"))
     } else {
       fileInput("mainInput",h5("Upload input file:"))
     }
@@ -1211,7 +1171,7 @@ shinyServer(function(input, output, session) {
     }
     
     if(input$demo == TRUE){
-      inputDf <- as.data.frame(read.csv("https://raw.githubusercontent.com/trvinh/phyloprofile/master/data/demo/test.main.long",stringsAsFactors = FALSE, sep='\t', comment.char=""))
+      inputDf <- drop_read_csv("/phyloprofile/data/demo/test.main.long", stringsAsFactors = FALSE, sep='\t', comment.char="",header = TRUE)
       
       subsetID <- levels(as.factor(inputDf$geneID))[1:nrHit]
       data <- inputDf[inputDf$geneID %in% subsetID,]
@@ -1426,7 +1386,7 @@ shinyServer(function(input, output, session) {
         out <- selectedGeneAge()
         if(length(out)>0){
           selectInput('inSeq','',out,selected=as.list(out),multiple=TRUE,selectize=FALSE)
-        } 
+        }
         else {
           selectInput('inSeq','',outAll,selected=outAll[1],multiple=TRUE,selectize=FALSE)
         }
@@ -1434,7 +1394,7 @@ shinyServer(function(input, output, session) {
         out <- brushedClusterGene()
         if(length(out)>0){
           selectInput('inSeq','',out,selected=as.list(out),multiple=TRUE,selectize=FALSE)
-        } 
+        }
         else {
           selectInput('inSeq','',outAll,selected=outAll[1],multiple=TRUE,selectize=FALSE)
         }
@@ -1822,7 +1782,7 @@ shinyServer(function(input, output, session) {
   # sameOrthoIndex <- reactive({
   #   ### check input
   #   if (v$doPlot == FALSE) return()
-  #   
+  #
   #   ### info
   #   info <- mainPointInfo()
   #   pos <- info[7]
@@ -1853,7 +1813,8 @@ shinyServer(function(input, output, session) {
     
     # open main input file
     if(input$demo == TRUE){
-      dataOrig <- as.data.frame(read.csv("https://raw.githubusercontent.com/trvinh/phyloprofile/master/data/demo/test.main",stringsAsFactors = FALSE, sep='\t', comment.char=""))
+      dataOrig <- drop_read_csv("/phyloprofile/data/demo/test.main", stringsAsFactors = FALSE, sep='\t', comment.char="",header = TRUE)
+      
       # convert into paired columns
       mdData <- melt(dataOrig,id="geneID")
       
@@ -1903,7 +1864,7 @@ shinyServer(function(input, output, session) {
         # split "orthoID#var1#var2" into 3 columns
         splitDt <- as.data.frame(str_split_fixed(mdData$value, '#', 3))
         colnames(splitDt) <- c("orthoID","var1","var2")
-      } 
+      }
     }
     
     splitDt$orthoID[splitDt$orthoID == "NA" | is.na(splitDt$orthoID)] <- NA
@@ -1991,7 +1952,7 @@ shinyServer(function(input, output, session) {
         #      ggtitle(paste("Mean",input$var2_id,"=",round(mean(splitDt$var2),3))) +
         theme_minimal()
       p <- p + theme(legend.position = "none",
-                     #                   plot.title = element_text(size=input$legendSize),#hjust = 0.5, 
+                     #                   plot.title = element_text(size=input$legendSize),#hjust = 0.5,
                      axis.title = element_text(size=input$dist_textSize),axis.text = element_text(size=input$dist_textSize)) +
         labs(x = paste0(input$var2_id," (mean = ",round(mean(splitDt$var2),3),")"), y = "Frequency")
       p
@@ -2020,7 +1981,8 @@ shinyServer(function(input, output, session) {
   presSpecAllDt <- reactive({
     # open main input file
     if(input$demo == TRUE){
-      data <- as.data.frame(read.csv("https://raw.githubusercontent.com/trvinh/phyloprofile/master/data/demo/test.main",stringsAsFactors = FALSE, sep='\t', comment.char=""))
+      data <- drop_read_csv("/phyloprofile/data/demo/test.main", stringsAsFactors = FALSE, sep='\t', comment.char="", header = TRUE)
+      
       # convert into paired columns
       mdData <- melt(data,id="geneID")
       
@@ -2741,7 +2703,7 @@ shinyServer(function(input, output, session) {
           if(flag == 0){
             fileDomain <- "noFileInFolder"
             updateButton(session, "doDomainPlot", disabled = TRUE)
-          } 
+          }
         }
       }
     }
@@ -2757,8 +2719,8 @@ shinyServer(function(input, output, session) {
     } else if(fileDomain == "noFileInFolder"){
       msg <- paste0(
         "<p><em>Domain file not found!! </em></p>
-        <p><em>Please make sure that file name has to be in this format: 
-        <strong>&lt;seedID&gt;.extension</strong>, where extension is limited to 
+        <p><em>Please make sure that file name has to be in this format:
+        <strong>&lt;seedID&gt;.extension</strong>, where extension is limited to
         <strong>txt</strong>, <strong>csv</strong>, <strong>list</strong>, <strong>domains</strong> or <strong>architecture</strong>.
         </em></p>"
       )
@@ -2983,7 +2945,7 @@ shinyServer(function(input, output, session) {
     countDf$percentage <- round(countDf$freq/sum(countDf$freq)*100)
     countDf$pos <- cumsum(countDf$percentage) - (0.5 * countDf$percentage)
     
-    p <- ggplot(countDf, aes(fill=age, y=percentage, x=1)) + 
+    p <- ggplot(countDf, aes(fill=age, y=percentage, x=1)) +
       geom_bar(stat="identity") +
       scale_y_reverse() +
       coord_flip() +
@@ -3061,7 +3023,7 @@ shinyServer(function(input, output, session) {
       for(i in 2:nrow(rangeDf)){
         rangeDf$rangeStart[i] <- rangeDf$rangeEnd[i-1]+1
         rangeDf$rangeEnd[i] <- rangeDf$percentage[i] + rangeDf$rangeEnd[i-1]
-      }     
+      }
     }
     
     # get list of selected age group
@@ -3445,7 +3407,7 @@ shinyServer(function(input, output, session) {
           dataOut <- dataOut
         }
         
-        dataOut$dup <- paste0(dataOut$geneID,"#",dataOut$ncbiID)  # <- used to select only one ortholog, if there exist more than one "representative" 
+        dataOut$dup <- paste0(dataOut$geneID,"#",dataOut$ncbiID)  # <- used to select only one ortholog, if there exist more than one "representative"
         dataOut <- dataOut[!duplicated(c(dataOut$dup)),]
       }
     }
@@ -3566,59 +3528,9 @@ shinyServer(function(input, output, session) {
   
   ######## show help
   output$help.ui <- renderUI({
-    HTML(
-      '
-      <h1 style="color: #5e9ca0;">How the input file looks like?</h1>
-      <p>PhyloProfile accepts 3 kinds of input file:</p>
-      <p>(1) <a href="http://www.orthoxml.org">OrthoXML</a>&nbsp;format, which are used&nbsp;by many popullar ortholog predictors or databases like InParanoid, Hieranoid, OMA, OrthoMCL, Panther, Roundup.</p>
-      <p>*Note: I tested the tool with an&nbsp;example XML file downloaded from <a href="http://orthoxml.org/0.3/orthoxml_doc_v0.3.html">OrthoXML website</a>. If it does not work with your XML file, please let me know!</p>
-      <p>(2) Long format, which is a tab delimited file containing 5 columns:&nbsp;geneID, ncbiID (&lt;ncbi&gt;+taxonID. e.g. ncbi7029, ncbi3702),&nbsp;orthoID,&nbsp;var1, var2. Where var1 and var2 are variables for two additional information layers.</p>
-      <p>(3) Wide/matrix format, where rows represent genes and columns represent taxa. Each cell in the matrix contains &lt;orthoID&gt;#&lt;var1&gt;#&lt;var2&gt;. An unavailable value is written as NA, e.g.&nbsp;arath_2339_31:248814#NA#0.2, or&nbsp;homsa_8_41:119370#NA#NA or only NA (the same as NA#NA#NA).</p>
-      <p><em>*Note for matrix format: &nbsp;the header of first column has to be "geneID". The header of each taxon must have this format "ncbi12345", in which 12345 is its NCBI taxon ID.</em></p>
-      <p><em><strong>More detail?</strong></em> Pleas take a look at the example files <strong>test.main</strong>, <strong>test.main.long</strong> or <strong>test.main.xml</strong> in <em>/data/demo/</em> :)</p>
-      <p>&nbsp;</p>
-      <h1 style="color: #5e9ca0;">Error while parsing orthoXML input file</h1>
-      <p>Currently I use a python script (<em>data/orthoxmlParser.py</em>) to parse orthoXML input file. This script needs 2 modules (libraries) called <strong>bs4</strong>&nbsp;and <strong>lxml</strong> for working. So please install these modules if necessary (sudo pip install bs4, sudo pip install lxml).</p>
-      <p>If it still not works, you can try to run either that python script (<span style="background-color: #999999; color: #ffffff;">python data/orthoxmlParser.py -i yourInput.orthoxml</span>) or its&nbsp;alternative perl script (<span style="color: #ffffff; background-color: #999999;">perl data/orthoxmlParser.pl -i yourInput.orthoxml</span>) in the terminal and save the result as a new input for PhyloProfile.</p>
-      <p>&nbsp;</p>
-      <h1 style="color: #5e9ca0;">Additional file</h1>
-      <p>An&nbsp;additional annotation&nbsp;file can be provided. Since the tool initially has been made to work with protein architecture annotations, the annotation file has to have 6 columns separated by tab: (1) pairID = groupID#orthologID#seedID, (2) orthologID/seedID, (3) feature name (pfam domain, smart domain,etc.), (4) start position, (5) end position, (6) weight value (only available for seed protein)</p>
-      <p><em>Pleas take a look at the example files in data/demo/domains folder for more details.</em></p>
-      <p>&nbsp;</p>
-      <h1 style="color: #5e9ca0;">Download function does not work</h1>
-      <p>Problem: clicked on the "Download plot" (or Download filtered data) button, entered a file name on to "Download file" window and clicked Save, but the file...was not saved :(</p>
-      <p>=&gt; Click on "Open im Browser" to open the app using internet browser. Now the download function should work.</p>
-      <p><em>I tested this function using Ubuntu 14.04 LTS and it worked with Firefox web browser. On a Mac machine, it always work ;)&nbsp;</em>&nbsp;</p>
-      <p>&nbsp;</p>
-      <h1 style="color: #5e9ca0;">Errors while plotting</h1>
-      <p><span style="color: #ff0000;"><strong>Error</strong>: arguments imply differing number of rows: 0, 1</span></p>
-      <p>=&gt; does your input matrix contain only 1 line???</p>
-      <p><span style="color: #ff0000;"><strong>Error</strong>: id variables not found in data: geneID</span></p>
-      <p>=&gt; &nbsp;the header of gene column has to be "geneID".</p>
-      <p><span style="color: #ff0000;"><strong>Error</strong>: no rows to aggregate</span></p>
-      <p>=&gt; are the first value "NA" everywhere??? If yes, please replace them by 0 or 1 or whatever but not NA! If not, you\'ve found a new bug. Please contact me ;)</p>
-      <p><span style="color: #ff0000;"><strong>Error</strong>: second argument must be a list</span></p>
-      <p>=&gt; please check if any of input genes is absent in all taxa, i.e. the complete row is filled with NA. The tool, unfortunately, does not accept these genes.</p>
-      <p>&nbsp;</p>
-      <h1 style="color: #5e9ca0;">Errors by&nbsp;showing Point\'s info</h1>
-      <p><span style="color: #ff0000;">Error:&nbsp;argument&nbsp;is of length zero</span></p>
-      <p>=&gt;&nbsp;re-select (super)taxon to highlight, it will work again :)</p>
-      <p>&nbsp;</p>
-      <h1 style="color: #5e9ca0;">Errors by plotting&nbsp;domain architecture</h1>
-      <p><span style="color: #ff0000;">Error:&nbsp;Aesthetics must be either length 1 or the same as the data (1): x, y, yend, xend</span></p>
-      <p>=&gt; please check if the ID of selected sequence, which is shown as orthoID in Detailed plot, is present in domain input file. This error is certainly caused by the missing ID in domain input file.</p>
-      <p>&nbsp;</p>
-      <h1 style="color: #5e9ca0;">Bug reporting</h1>
-      <p>Any bug reports or comments, suggestions are highly appreciated ;-)</p>
-      <p>&nbsp;</p>
-      <p>&copy; 2016 Vinh Tran</p>
-      <p>contact:&nbsp;<a href="mailto:tran@bio.uni-frankfurt.de">tran@bio.uni-frankfurt.de</a></p>
-      <p>Please check the latest version at&nbsp;<a href="https://github.com/trvinh/phyloprofile">https://github.com/trvinh/phyloprofile</a></p>
-      <p>Or try the online version at&nbsp;<a href="https://phyloprofile.shinyapps.io/phyloprofile/">https://phyloprofile.shinyapps.io/phyloprofile/</a></p>
-      '
-      )
+    includeHTML("help.html") 
   })
-
+  
   ############### USED FOR TESTING
   output$testOutput <- renderText({
     # ### print infile
