@@ -1,7 +1,7 @@
 
 # PhyloProfile Tool
 
-**THIS VERSION IS NO LONGER UPDATED AND SUPPORTED. PLEASE USE [PhyloProfile](https://github.com/BIONF/phyloprofile_oneseq) instead.**
+**THIS VERSION IS NO LONGER UPDATED AND SUPPORTED. PLEASE USE [PhyloProfile](https://github.com/BIONF/phyloprofile) instead.**
 
 # Contact
 Vinh Tran
